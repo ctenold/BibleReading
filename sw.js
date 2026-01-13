@@ -1,7 +1,7 @@
 const CACHE_NAME = 'bible-reading-v1';
 const urlsToCache = [
   '/',
-  '/BibleReading.html',
+  '/index.html',
   '/manifest.json',
   '/icon-192.png',
   '/icon-512.png'
