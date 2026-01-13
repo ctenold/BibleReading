@@ -194,6 +194,9 @@
         const savedYear = localStorage.getItem('mcheyne-current-year');
         if (savedYear) {
           currentYear = parseInt(savedYear);
+          // Update button states to match loaded year
+          document.getElementById('year1Btn').classList.toggle('active', currentYear === 1);
+          document.getElementById('year2Btn').classList.toggle('active', currentYear === 2);
         }
       } catch (error) {
         console.log('No saved progress');
