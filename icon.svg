@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#4CAF50"/>
+  <rect x="128" y="96" width="256" height="320" fill="#FFFFFF" rx="16"/>
+  <rect x="160" y="128" width="192" height="16" fill="#4CAF50"/>
+  <rect x="160" y="160" width="192" height="8" fill="#666"/>
+  <rect x="160" y="184" width="150" height="8" fill="#666"/>
+  <rect x="160" y="208" width="180" height="8" fill="#666"/>
+  <rect x="160" y="232" width="120" height="8" fill="#666"/>
+  <rect x="160" y="256" width="170" height="8" fill="#666"/>
+  <rect x="160" y="280" width="140" height="8" fill="#666"/>
+  <rect x="160" y="304" width="160" height="8" fill="#666"/>
+  <rect x="160" y="328" width="130" height="8" fill="#666"/>
+  <rect x="160" y="352" width="190" height="8" fill="#666"/>
+  <text x="256" y="420" text-anchor="middle" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="24" font-weight="bold">BIBLE</text>
+</svg>
