@@ -191,6 +191,10 @@
         if (saved) {
           checkState = JSON.parse(saved);
         }
+        const savedYear = localStorage.getItem('mcheyne-current-year');
+        if (savedYear) {
+          currentYear = parseInt(savedYear);
+        }
       } catch (error) {
         console.log('No saved progress');
       }
@@ -281,6 +285,7 @@
 
     function switchYear(year) {
       currentYear = year;
+      localStorage.setItem('mcheyne-current-year', year.toString());
       document.getElementById('year1Btn').classList.toggle('active', year === 1);
       document.getElementById('year2Btn').classList.toggle('active', year === 2);
       renderCalendar();
