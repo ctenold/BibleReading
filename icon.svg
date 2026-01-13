@@ -1,15 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#4CAF50"/>
-  <rect x="128" y="96" width="256" height="320" fill="#FFFFFF" rx="16"/>
-  <rect x="160" y="128" width="192" height="16" fill="#4CAF50"/>
-  <rect x="160" y="160" width="192" height="8" fill="#666"/>
-  <rect x="160" y="184" width="150" height="8" fill="#666"/>
-  <rect x="160" y="208" width="180" height="8" fill="#666"/>
-  <rect x="160" y="232" width="120" height="8" fill="#666"/>
-  <rect x="160" y="256" width="170" height="8" fill="#666"/>
-  <rect x="160" y="280" width="140" height="8" fill="#666"/>
-  <rect x="160" y="304" width="160" height="8" fill="#666"/>
-  <rect x="160" y="328" width="130" height="8" fill="#666"/>
-  <rect x="160" y="352" width="190" height="8" fill="#666"/>
-  <text x="256" y="420" text-anchor="middle" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="24" font-weight="bold">BIBLE</text>
-</svg>
+<svg width="1760" height="1760" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" overflow="hidden"><defs><clipPath id="clip0"><rect x="1320" y="358" width="1760" height="1760"/></clipPath></defs><g clip-path="url(#clip0)" transform="translate(-1320 -358)"><rect x="1320" y="358" width="1760" height="1760" fill="#4CAF50"/><rect x="1760" y="688" width="880" height="1100" fill="#FFFFFF"/><rect x="1870" y="798" width="660" height="55" fill="#4CAF50"/><rect x="1870" y="908" width="660" height="27.0002" fill="#666666"/><rect x="1870" y="990" width="516" height="27.9998" fill="#666666"/><rect x="1870" y="1073" width="619" height="27.0001" fill="#666666"/><rect x="1870" y="1155" width="413" height="27.9999" fill="#666666"/><rect x="1870" y="1238" width="584" height="27.0001" fill="#666666"/><rect x="1870" y="1320" width="481" height="27.9999" fill="#666666"/><rect x="1870" y="1403" width="550" height="27.0001" fill="#666666"/><rect x="1870" y="1485" width="447" height="27.9999" fill="#666666"/><rect x="1870" y="1568" width="653" height="27.0001" fill="#666666"/><text fill="#FFFFFF" font-family="Arial,Arial_MSFontService,sans-serif" font-weight="700" font-size="83" transform="matrix(1 0 0 1 1822.49 1902)">B</text><text fill="#FFFFFF" font-family="Arial,Arial_MSFontService,sans-serif" font-weight="700" font-size="83" transform="matrix(1 0 0 1 1882.07 1902)">ible Reading Plan</text></g></svg>
