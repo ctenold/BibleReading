@@ -83,6 +83,26 @@
       color: #4CAF50;
       border-bottom: 2px solid #4CAF50;
       padding-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .month h2:hover {
+      color: #66BB6A;
+    }
+
+    .month.collapsed .month-content {
+      display: none;
+    }
+
+    .month.completed h2 {
+      color: #2E7D32;
+      font-weight: bold;
+    }
+
+    .month.completed h2::after {
+      content: " ✓";
+      color: #2E7D32;
     }
     
     .day {
@@ -212,9 +232,53 @@
       updateProgress();
     }
 
+    function isMonthCompleted(year, month) {
+      const data = year === 1 ? year1Data : year2Data;
+      const readings = data[month];
+      if (!readings) return false;
+
+      for (let i = 0; i < readings.length; i++) {
+        const key = `${year}-${month}-${i}`;
+        if (!checkState[key]) return false;
+      }
+      return true;
+    }
+
+    function toggleMonth(monthDiv, year, month) {
+      const monthKey = `${year}-${month}`;
+      const isCollapsed = monthDiv.classList.contains('collapsed');
+
+      if (isCollapsed) {
+        monthDiv.classList.remove('collapsed');
+        localStorage.setItem(`month-collapsed-${monthKey}`, 'false');
+      } else {
+        monthDiv.classList.add('collapsed');
+        localStorage.setItem(`month-collapsed-${monthKey}`, 'true');
+      }
+    }
+
     function handleCheckbox(year, month, day) {
       const key = `${year}-${month}-${day}`;
       checkState[key] = !checkState[key];
+
+      // Check if month just became completed
+      const monthKey = `${year}-${month}`;
+      const monthDiv = document.getElementById(`month-${monthKey}`);
+      const wasCompleted = monthDiv.classList.contains('completed');
+      const isCompleted = isMonthCompleted(year, month);
+
+      if (isCompleted && !wasCompleted) {
+        // Month just completed - add completed class and collapse
+        monthDiv.classList.add('completed');
+        monthDiv.classList.add('collapsed');
+        localStorage.setItem(`month-collapsed-${monthKey}`, 'true');
+      } else if (!isCompleted && wasCompleted) {
+        // Month no longer completed - remove completed class and expand
+        monthDiv.classList.remove('completed');
+        monthDiv.classList.remove('collapsed');
+        localStorage.setItem(`month-collapsed-${monthKey}`, 'false');
+      }
+
       saveProgress();
     }
 
@@ -245,10 +309,16 @@
       Object.keys(data).forEach(month => {
         const monthDiv = document.createElement('div');
         monthDiv.className = 'month';
+        monthDiv.id = `month-${currentYear}-${month}`;
 
         const title = document.createElement('h2');
         title.textContent = month;
+        title.addEventListener('click', () => toggleMonth(monthDiv, currentYear, month));
         monthDiv.appendChild(title);
+
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'month-content';
+        monthDiv.appendChild(contentDiv);
 
         data[month].forEach((reading, idx) => {
           const dayDiv = document.createElement('div');
@@ -277,8 +347,23 @@
 
           dayDiv.appendChild(checkbox);
           dayDiv.appendChild(label);
-          monthDiv.appendChild(dayDiv);
+          contentDiv.appendChild(dayDiv);
         });
+
+        // Check if month is completed and apply styles
+        const monthKey = `${currentYear}-${month}`;
+        const isCompleted = isMonthCompleted(currentYear, month);
+        const isCollapsed = localStorage.getItem(`month-collapsed-${monthKey}`) === 'true';
+
+        if (isCompleted) {
+          monthDiv.classList.add('completed');
+          if (!isCollapsed) {
+            localStorage.setItem(`month-collapsed-${monthKey}`, 'true');
+          }
+          monthDiv.classList.add('collapsed');
+        } else if (isCollapsed) {
+          monthDiv.classList.add('collapsed');
+        }
 
         container.appendChild(monthDiv);
       });
