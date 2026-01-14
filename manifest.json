@@ -1,7 +1,7 @@
 {
-  "name": "M'Cheyne Bible Reading Plan",
+  "name": "Bible Reading Plans",
   "short_name": "Bible Reading",
-  "description": "A two-year plan to read through the entire Bible",
+  "description": "Multiple Bible reading plans including M'Cheyne, ...",
   "start_url": "/BibleReading/",
   "scope": "/BibleReading/",
   "display": "standalone",
