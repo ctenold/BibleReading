@@ -485,8 +485,8 @@
       const yearSelector = document.getElementById('yearSelector');
       if (plans[planKey].duration > 1) {
         yearSelector.style.display = 'block';
-        document.getElementById('year1Btn').classList.add('active');
-        document.getElementById('year2Btn').classList.remove('active');
+        document.getElementById('year1Btn').classList.toggle('active', currentYear === 1);
+        document.getElementById('year2Btn').classList.toggle('active', currentYear === 2);
       } else {
         yearSelector.style.display = 'none';
       }
