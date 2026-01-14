@@ -260,6 +260,8 @@
         const savedPlan = localStorage.getItem('bible-plan-current');
         if (savedPlan && plans[savedPlan]) {
           currentPlan = savedPlan;
+        } else {
+          currentPlan = 'mcheyne';
         }
         const saved = localStorage.getItem(`bible-progress-${currentPlan}`);
         if (saved) {
@@ -276,6 +278,8 @@
       } catch (error) {
         console.log('No saved progress');
         checkState = {};
+        currentPlan = 'mcheyne';
+        currentYear = 1;
       }
     }
 
@@ -453,6 +457,25 @@
       currentPlan = planKey;
       currentYear = 1; // Reset to year 1 for new plan
 
+      // Load progress for this plan
+      try {
+        const saved = localStorage.getItem(`bible-progress-${currentPlan}`);
+        if (saved) {
+          checkState = JSON.parse(saved);
+        } else {
+          checkState = {};
+        }
+        const savedYear = localStorage.getItem(`bible-year-${currentPlan}`);
+        if (savedYear && plans[currentPlan].duration > 1) {
+          currentYear = parseInt(savedYear);
+        } else {
+          currentYear = 1;
+        }
+      } catch (error) {
+        checkState = {};
+        currentYear = 1;
+      }
+
       // Update UI
       document.getElementById('planTitle').textContent = plans[planKey].name;
       document.getElementById('planDescription').innerHTML = plans[planKey].description;
@@ -468,8 +491,6 @@
         yearSelector.style.display = 'none';
       }
 
-      // Load progress for new plan
-      loadProgress();
       renderCalendar();
     }
 
