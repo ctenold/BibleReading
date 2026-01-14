@@ -455,7 +455,7 @@
 
       // Update UI
       document.getElementById('planTitle').textContent = plans[planKey].name;
-      document.getElementById('planDescription').textContent = plans[planKey].description;
+      document.getElementById('planDescription').innerHTML = plans[planKey].description;
       document.getElementById('planSelect').value = planKey;
 
       // Update year selector visibility
@@ -480,14 +480,7 @@
     document.getElementById('year1Btn').addEventListener('click', () => switchYear(1));
     document.getElementById('year2Btn').addEventListener('click', () => switchYear(2));
 
-    // Register service worker for PWA
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js')
-          .then(registration => console.log('SW registered'))
-          .catch(error => console.log('SW registration failed'));
-      });
-    }
+
 
     // Initialize
     async function init() {
