@@ -205,9 +205,10 @@
     }
 
     .sync-button {
-      position: fixed;
-      top: 20px;
-      right: 20px;
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 15px;
       padding: 10px 15px;
       font-size: 14px;
       border: 2px solid #2196F3;
@@ -216,7 +217,6 @@
       border-radius: 5px;
       cursor: pointer;
       transition: all 0.3s;
-      z-index: 1000;
     }
 
     .sync-button:hover {
@@ -284,8 +284,6 @@
   <h1 id="planTitle">M'Cheyne Bible Reading Plan</h1>
   <p class="subtitle" id="planDescription">A two-year plan to read through the entire Bible</p>
 
-  <button class="sync-button" onclick="openSyncModal()">Sync with Google Drive</button>
-
   <div id="syncModal" class="sync-modal">
     <div class="sync-modal-content">
       <h3>Google Drive Sync</h3>
@@ -311,12 +309,13 @@
     <button id="year1Btn" class="active">Year 1</button>
     <button id="year2Btn">Year 2</button>
   </div>
-  
+
   <div class="progress">
     <div id="progressText">Loading progress...</div>
     <div class="progress-bar">
       <div class="progressFill" id="progressFill" style="width: 0%">0%</div>
     </div>
+    <button class="sync-button" onclick="openSyncModal()">Sync with Google Drive</button>
   </div>
   
   <div class="months-grid" id="calendar"></div>
