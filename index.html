@@ -264,6 +264,8 @@
         const saved = localStorage.getItem(`bible-progress-${currentPlan}`);
         if (saved) {
           checkState = JSON.parse(saved);
+        } else {
+          checkState = {};
         }
         const savedYear = localStorage.getItem(`bible-year-${currentPlan}`);
         if (savedYear && plans[currentPlan].duration > 1) {
@@ -273,6 +275,7 @@
         }
       } catch (error) {
         console.log('No saved progress');
+        checkState = {};
       }
     }
 
