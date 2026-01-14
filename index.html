@@ -464,6 +464,8 @@
 
     function renderCalendar() {
       const plan = plans[currentPlan];
+      if (!plan) return; // Guard against undefined plan
+
       const container = document.getElementById('calendar');
       container.innerHTML = '';
 
@@ -598,6 +600,12 @@
     let tokenClient;
 
     function initGoogleAPI() {
+      // Wait for Google Identity Services to load
+      if (typeof google === 'undefined') {
+        setTimeout(initGoogleAPI, 100);
+        return;
+      }
+
       // Initialize Google Identity Services
       google.accounts.id.initialize({
         client_id: '1082696871398-imfkm77japkf0eu4jgjb41gb3cb29m6r.apps.googleusercontent.com',
