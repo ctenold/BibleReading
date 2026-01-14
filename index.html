@@ -203,11 +203,98 @@
       outline: none;
       border-color: #66BB6A;
     }
+
+    .sync-button {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 10px 15px;
+      font-size: 14px;
+      border: 2px solid #2196F3;
+      background: white;
+      color: #2196F3;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: all 0.3s;
+      z-index: 1000;
+    }
+
+    .sync-button:hover {
+      background: #2196F3;
+      color: white;
+    }
+
+    .sync-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1001;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .sync-modal.show {
+      display: flex;
+    }
+
+    .sync-modal-content {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      text-align: center;
+      max-width: 300px;
+      width: 90%;
+    }
+
+    .sync-modal-content h3 {
+      margin-bottom: 15px;
+      color: #333;
+    }
+
+    .sync-modal-content button {
+      padding: 10px 20px;
+      margin: 5px;
+      font-size: 14px;
+      border: 2px solid #4CAF50;
+      background: white;
+      color: #4CAF50;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .sync-modal-content button:hover {
+      background: #4CAF50;
+      color: white;
+    }
+
+    .sync-status {
+      margin-top: 10px;
+      font-size: 0.9em;
+      color: #666;
+    }
   </style>
 </head>
 <body>
   <h1 id="planTitle">M'Cheyne Bible Reading Plan</h1>
   <p class="subtitle" id="planDescription">A two-year plan to read through the entire Bible</p>
+
+  <button class="sync-button" onclick="openSyncModal()">Sync with Google Drive</button>
+
+  <div id="syncModal" class="sync-modal">
+    <div class="sync-modal-content">
+      <h3>Google Drive Sync</h3>
+      <button onclick="exportToDrive()">Export Progress</button>
+      <button onclick="importFromDrive()">Import Progress</button>
+      <button onclick="closeSyncModal()">Cancel</button>
+      <div id="syncStatus" class="sync-status"></div>
+    </div>
+  </div>
 
   <div class="plan-selector">
     <label for="planSelect">Select Reading Plan:</label>
@@ -228,12 +315,13 @@
   <div class="progress">
     <div id="progressText">Loading progress...</div>
     <div class="progress-bar">
-      <div class="progress-fill" id="progressFill" style="width: 0%">0%</div>
+      <div class="progressFill" id="progressFill" style="width: 0%">0%</div>
     </div>
   </div>
   
   <div class="months-grid" id="calendar"></div>
 
+  <script src="https://apis.google.com/js/api.js"></script>
   <script>
     let plans = {};
 
@@ -254,6 +342,10 @@
     let currentPlan = 'mcheyne';
     let currentYear = 1;
     let checkState = {};
+
+    // Google Drive variables
+    let isSignedIn = false;
+    let driveFileId = null;
 
     function loadProgress() {
       try {
@@ -501,10 +593,148 @@
     document.getElementById('year1Btn').addEventListener('click', () => switchYear(1));
     document.getElementById('year2Btn').addEventListener('click', () => switchYear(2));
 
+    // Google Drive functions
+    function initGoogleAPI() {
+      gapi.load('client:auth2', () => {
+        gapi.client.init({
+          clientId: '1082696871398-imfkm77japkf0eu4jgjb41gb3cb29m6r.apps.googleusercontent.com',
+          scope: 'https://www.googleapis.com/auth/drive.file',
+          discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']
+        }).then(() => {
+          gapi.auth2.getAuthInstance().isSignedIn.listen(updateSignInStatus);
+          updateSignInStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
+        });
+      });
+    }
 
+    function updateSignInStatus(isUserSignedIn) {
+      isSignedIn = isUserSignedIn;
+    }
+
+    function openSyncModal() {
+      if (!isSignedIn) {
+        gapi.auth2.getAuthInstance().signIn().then(() => {
+          document.getElementById('syncModal').classList.add('show');
+        });
+      } else {
+        document.getElementById('syncModal').classList.add('show');
+      }
+    }
+
+    function closeSyncModal() {
+      document.getElementById('syncModal').classList.remove('show');
+      document.getElementById('syncStatus').textContent = '';
+    }
+
+    async function exportToDrive() {
+      if (!isSignedIn) return;
+
+      const status = document.getElementById('syncStatus');
+      status.textContent = 'Exporting...';
+
+      try {
+        const data = {
+          checkState,
+          currentPlan,
+          currentYear,
+          timestamp: new Date().toISOString(),
+          version: '1.0'
+        };
+
+        const fileContent = JSON.stringify(data, null, 2);
+        const file = new Blob([fileContent], { type: 'application/json' });
+
+        const metadata = {
+          name: 'bible-reading-progress.json',
+          mimeType: 'application/json'
+        };
+
+        const form = new FormData();
+        form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+        form.append('file', file);
+
+        let url = 'https://www.googleapis.com/upload/drive/v3/files';
+        let method = 'POST';
+
+        if (driveFileId) {
+          url += `/${driveFileId}`;
+          method = 'PATCH';
+        }
+
+        const response = await fetch(url + '?uploadType=multipart', {
+          method: method,
+          headers: {
+            'Authorization': 'Bearer ' + gapi.auth.getToken().access_token
+          },
+          body: form
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          driveFileId = result.id;
+          status.textContent = 'Exported successfully to Google Drive';
+          setTimeout(() => closeSyncModal(), 2000);
+        } else {
+          throw new Error('Upload failed');
+        }
+      } catch (error) {
+        console.error('Export error:', error);
+        status.textContent = 'Export failed: ' + error.message;
+      }
+    }
+
+    async function importFromDrive() {
+      if (!isSignedIn) return;
+
+      const status = document.getElementById('syncStatus');
+      status.textContent = 'Importing...';
+
+      try {
+        // First, find the progress file
+        const searchResponse = await gapi.client.drive.files.list({
+          q: "name='bible-reading-progress.json' and trashed=false",
+          fields: 'files(id, name, modifiedTime)'
+        });
+
+        const files = searchResponse.result.files;
+        if (files.length === 0) {
+          status.textContent = 'No progress file found in Google Drive';
+          return;
+        }
+
+        // Use the most recent file
+        const fileId = files[0].id;
+
+        const downloadResponse = await gapi.client.drive.files.get({
+          fileId: fileId,
+          alt: 'media'
+        });
+
+        const data = JSON.parse(downloadResponse.body);
+        
+        // Validate data structure
+        if (data.checkState && data.currentPlan) {
+          checkState = data.checkState;
+          currentPlan = data.currentPlan;
+          currentYear = data.currentYear || 1;
+          
+          saveProgress();
+          switchPlan(currentPlan);
+
+          status.textContent = 'Imported successfully from Google Drive';
+          setTimeout(() => closeSyncModal(), 2000);
+        } else {
+          throw new Error('Invalid file format');
+        }
+      } catch (error) {
+        console.error('Import error:', error);
+        status.textContent = 'Import failed: ' + error.message;
+      }
+    }
 
     // Initialize
     async function init() {
+      initGoogleAPI();
       await loadAllPlans();
       loadProgress();
       switchPlan(currentPlan);
