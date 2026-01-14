@@ -313,7 +313,7 @@
   <div class="progress">
     <div id="progressText">Loading progress...</div>
     <div class="progress-bar">
-      <div class="progressFill" id="progressFill" style="width: 0%">0%</div>
+      <div class="progress-fill" id="progressFill" style="width: 0%">0%</div>
     </div>
     <button class="sync-button" onclick="openSyncModal()">Sync with Google Drive</button>
   </div>
@@ -367,11 +367,13 @@
         } else {
           currentYear = 1;
         }
+        driveFileId = localStorage.getItem('bible-drive-file-id') || null;
       } catch (error) {
         console.log('No saved progress');
         checkState = {};
         currentPlan = 'mcheyne';
         currentYear = 1;
+        driveFileId = null;
       }
     }
 
@@ -690,6 +692,7 @@
         if (response.ok) {
           const result = await response.json();
           driveFileId = result.id;
+          localStorage.setItem('bible-drive-file-id', driveFileId);
           status.textContent = 'Exported successfully to Google Drive';
           setTimeout(() => closeSyncModal(), 2000);
         } else {
@@ -725,6 +728,20 @@
 
         // Use the most recent file
         const fileId = files[0].id;
+        driveFileId = fileId;
+        localStorage.setItem('bible-drive-file-id', driveFileId);
+
+        // Delete duplicate files
+        if (files.length > 1) {
+          for (let i = 1; i < files.length; i++) {
+            await fetch(`https://www.googleapis.com/drive/v3/files/${files[i].id}`, {
+              method: 'DELETE',
+              headers: {
+                'Authorization': 'Bearer ' + accessToken
+              }
+            });
+          }
+        }
 
         const downloadResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
           headers: {
