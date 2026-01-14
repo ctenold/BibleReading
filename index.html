@@ -321,7 +321,7 @@
   
   <div class="months-grid" id="calendar"></div>
 
-  <script src="https://apis.google.com/js/api.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script>
     let plans = {};
 
@@ -345,6 +345,7 @@
 
     // Google Drive variables
     let isSignedIn = false;
+    let accessToken = null;
     let driveFileId = null;
 
     function loadProgress() {
@@ -594,28 +595,38 @@
     document.getElementById('year2Btn').addEventListener('click', () => switchYear(2));
 
     // Google Drive functions
+    let tokenClient;
+
     function initGoogleAPI() {
-      gapi.load('client:auth2', () => {
-        gapi.client.init({
-          clientId: '1082696871398-imfkm77japkf0eu4jgjb41gb3cb29m6r.apps.googleusercontent.com',
-          scope: 'https://www.googleapis.com/auth/drive.file',
-          discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']
-        }).then(() => {
-          gapi.auth2.getAuthInstance().isSignedIn.listen(updateSignInStatus);
-          updateSignInStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
-        });
+      // Initialize Google Identity Services
+      google.accounts.id.initialize({
+        client_id: '1082696871398-imfkm77japkf0eu4jgjb41gb3cb29m6r.apps.googleusercontent.com',
+        callback: handleCredentialResponse
+      });
+
+      // Initialize token client for Drive API access
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: '1082696871398-imfkm77japkf0eu4jgjb41gb3cb29m6r.apps.googleusercontent.com',
+        scope: 'https://www.googleapis.com/auth/drive.file',
+        callback: (response) => {
+          if (response.access_token) {
+            accessToken = response.access_token;
+            isSignedIn = true;
+            document.getElementById('syncModal').classList.add('show');
+          }
+        }
       });
     }
 
-    function updateSignInStatus(isUserSignedIn) {
-      isSignedIn = isUserSignedIn;
+    function handleCredentialResponse(response) {
+      // This handles the basic sign-in, but we need OAuth token for Drive API
+      console.log('Signed in with Google');
     }
 
     function openSyncModal() {
       if (!isSignedIn) {
-        gapi.auth2.getAuthInstance().signIn().then(() => {
-          document.getElementById('syncModal').classList.add('show');
-        });
+        // Request access token for Drive API
+        tokenClient.requestAccessToken();
       } else {
         document.getElementById('syncModal').classList.add('show');
       }
@@ -627,7 +638,7 @@
     }
 
     async function exportToDrive() {
-      if (!isSignedIn) return;
+      if (!accessToken) return;
 
       const status = document.getElementById('syncStatus');
       status.textContent = 'Exporting...';
@@ -664,7 +675,7 @@
         const response = await fetch(url + '?uploadType=multipart', {
           method: method,
           headers: {
-            'Authorization': 'Bearer ' + gapi.auth.getToken().access_token
+            'Authorization': 'Bearer ' + accessToken
           },
           body: form
         });
@@ -675,7 +686,7 @@
           status.textContent = 'Exported successfully to Google Drive';
           setTimeout(() => closeSyncModal(), 2000);
         } else {
-          throw new Error('Upload failed');
+          throw new Error(`Upload failed: ${response.status}`);
         }
       } catch (error) {
         console.error('Export error:', error);
@@ -684,19 +695,22 @@
     }
 
     async function importFromDrive() {
-      if (!isSignedIn) return;
+      if (!accessToken) return;
 
       const status = document.getElementById('syncStatus');
       status.textContent = 'Importing...';
 
       try {
         // First, find the progress file
-        const searchResponse = await gapi.client.drive.files.list({
-          q: "name='bible-reading-progress.json' and trashed=false",
-          fields: 'files(id, name, modifiedTime)'
+        const searchResponse = await fetch('https://www.googleapis.com/drive/v3/files?q=name%3D%22bible-reading-progress.json%22%20and%20trashed%3Dfalse&fields=files(id%2Cname%2CmodifiedTime)', {
+          headers: {
+            'Authorization': 'Bearer ' + accessToken
+          }
         });
 
-        const files = searchResponse.result.files;
+        const searchData = await searchResponse.json();
+        const files = searchData.files || [];
+
         if (files.length === 0) {
           status.textContent = 'No progress file found in Google Drive';
           return;
@@ -705,19 +719,20 @@
         // Use the most recent file
         const fileId = files[0].id;
 
-        const downloadResponse = await gapi.client.drive.files.get({
-          fileId: fileId,
-          alt: 'media'
+        const downloadResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+          headers: {
+            'Authorization': 'Bearer ' + accessToken
+          }
         });
 
-        const data = JSON.parse(downloadResponse.body);
-        
+        const data = await downloadResponse.json();
+
         // Validate data structure
         if (data.checkState && data.currentPlan) {
           checkState = data.checkState;
           currentPlan = data.currentPlan;
           currentYear = data.currentYear || 1;
-          
+
           saveProgress();
           switchPlan(currentPlan);
 
