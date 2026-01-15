@@ -378,20 +378,34 @@
       for (let y = 1; y < year; y++) {
         const yearData = plan.data[`year${y}`];
         if (yearData) {
-          Object.values(yearData).forEach(readings => {
-            totalDays += readings.length;
-          });
+          if (plan.type === 'weekly') {
+            // For weekly plans, each week advances by 7 days
+            totalDays += Object.keys(yearData).length * 7;
+          } else {
+            Object.values(yearData).forEach(readings => {
+              totalDays += readings.length;
+            });
+          }
         }
       }
 
       const yearData = plan.data[`year${year}`];
       if (yearData) {
+        let weekCount = 0;
         Object.keys(yearData).every(m => {
           if (m === month) {
-            totalDays += dayIndex;
+            if (plan.type === 'weekly') {
+              totalDays += weekCount * 7 + dayIndex;
+            } else {
+              totalDays += dayIndex;
+            }
             return false; // break
           } else {
-            totalDays += yearData[m].length;
+            if (plan.type === 'weekly') {
+              weekCount++;
+            } else {
+              totalDays += yearData[m].length;
+            }
             return true;
           }
         });
@@ -532,80 +546,163 @@
       container.innerHTML = '';
 
       const data = plan.data[`year${currentYear}`];
-      if (data) {
+      if (!data) return;
+
+      if (plan.type === 'weekly') {
+        // For weekly plans, group by calendar weeks
+        const readingsByWeek = {};
+
+        Object.keys(data).forEach(weekKey => {
+          const readings = data[weekKey];
+          readings.forEach((reading, idx) => {
+            const readingDate = getReadingDate(currentYear, weekKey, idx);
+            if (readingDate) {
+              const weekStart = new Date(readingDate);
+              // Find Monday of the week containing this date
+              const dayOfWeek = weekStart.getDay(); // 0 = Sunday, 1 = Monday, etc.
+              const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Monday is 1
+              weekStart.setDate(weekStart.getDate() + mondayOffset);
+
+              const weekKeyCal = `Week of ${formatDate(weekStart)}`;
+              if (!readingsByWeek[weekKeyCal]) {
+                readingsByWeek[weekKeyCal] = [];
+              }
+              readingsByWeek[weekKeyCal].push({
+                reading,
+                originalKey: `${currentPlan}-${currentYear}-${weekKey}-${idx}`,
+                date: readingDate
+              });
+            }
+          });
+        });
+
+        Object.keys(readingsByWeek).forEach(weekKey => {
+          const weekDiv = document.createElement('div');
+          weekDiv.className = 'month';
+          weekDiv.id = `week-${currentPlan}-${currentYear}-${weekKey.replace(/\s+/g, '-')}`;
+
+          const title = document.createElement('h2');
+          title.textContent = weekKey;
+          title.addEventListener('click', () => toggleMonth(weekDiv, currentYear, weekKey));
+          weekDiv.appendChild(title);
+
+          const contentDiv = document.createElement('div');
+          contentDiv.className = 'month-content';
+          weekDiv.appendChild(contentDiv);
+
+          readingsByWeek[weekKey].forEach(({ reading, originalKey, date }) => {
+            const dayDiv = document.createElement('div');
+            dayDiv.className = 'day';
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = originalKey.replace(/[^a-zA-Z0-9]/g, '-');
+            checkbox.checked = checkState[originalKey] || false;
+            checkbox.addEventListener('change', () => {
+              checkState[originalKey] = !checkState[originalKey];
+              saveProgress();
+            });
+
+            const label = document.createElement('label');
+            label.htmlFor = checkbox.id;
+
+            const dayNum = document.createElement('span');
+            dayNum.className = 'day-num';
+            dayNum.textContent = formatDate(date);
+
+            const readingSpan = document.createElement('span');
+            readingSpan.className = 'reading';
+            readingSpan.textContent = reading;
+
+            label.appendChild(dayNum);
+            label.appendChild(readingSpan);
+
+            dayDiv.appendChild(checkbox);
+            dayDiv.appendChild(label);
+            contentDiv.appendChild(dayDiv);
+          });
+
+          container.appendChild(weekDiv);
+        });
+      } else {
+        // For daily plans, group by calendar months
+        const readingsByMonth = {};
 
         Object.keys(data).forEach(month => {
-           const monthDiv = document.createElement('div');
-           monthDiv.className = 'month';
-           monthDiv.id = `month-${currentPlan}-${currentYear}-${month}`;
+          const readings = data[month];
+          readings.forEach((reading, idx) => {
+            const readingDate = getReadingDate(currentYear, month, idx);
+            if (readingDate) {
+              const monthKey = `${readingDate.getFullYear()}-${String(readingDate.getMonth() + 1).padStart(2, '0')}`;
+              if (!readingsByMonth[monthKey]) {
+                readingsByMonth[monthKey] = [];
+              }
+              readingsByMonth[monthKey].push({
+                reading,
+                originalKey: `${currentPlan}-${currentYear}-${month}-${idx}`,
+                date: readingDate
+              });
+            }
+          });
+        });
 
-           const title = document.createElement('h2');
-           let titleText = month;
-           if (plan.type === 'weekly') {
-             titleText = `Week ${month.replace('Week', '')}`;
-           } else if (plan.duration > 1) {
-             titleText = `${month} (Year ${currentYear})`;
-           }
-           title.textContent = titleText;
-           title.addEventListener('click', () => toggleMonth(monthDiv, currentYear, month));
-           monthDiv.appendChild(title);
+        Object.keys(readingsByMonth).sort().forEach(monthKey => {
+          const [year, monthNum] = monthKey.split('-');
+          const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+          const monthName = monthNames[parseInt(monthNum) - 1];
+          const displayMonth = plan.duration > 1 ? `${monthName} ${year}` : monthName;
 
-           const contentDiv = document.createElement('div');
-           contentDiv.className = 'month-content';
-           monthDiv.appendChild(contentDiv);
+          const monthDiv = document.createElement('div');
+          monthDiv.className = 'month';
+          monthDiv.id = `month-${currentPlan}-${monthKey}`;
 
-           data[month].forEach((reading, idx) => {
-             const dayDiv = document.createElement('div');
-             dayDiv.className = 'day';
+          const title = document.createElement('h2');
+          title.textContent = displayMonth;
+          title.addEventListener('click', () => toggleMonth(monthDiv, currentYear, monthKey));
+          monthDiv.appendChild(title);
 
-             const checkbox = document.createElement('input');
-             checkbox.type = 'checkbox';
-             checkbox.id = `y${currentYear}-${month}-${idx}`;
-             const key = `${currentPlan}-${currentYear}-${month}-${idx}`;
-             checkbox.checked = checkState[key] || false;
-             checkbox.addEventListener('change', () => handleCheckbox(currentYear, month, idx));
+          const contentDiv = document.createElement('div');
+          contentDiv.className = 'month-content';
+          monthDiv.appendChild(contentDiv);
 
-             const label = document.createElement('label');
-             label.htmlFor = checkbox.id;
+          readingsByMonth[monthKey].forEach(({ reading, originalKey, date }) => {
+            const dayDiv = document.createElement('div');
+            dayDiv.className = 'day';
 
-             const dayNum = document.createElement('span');
-             dayNum.className = 'day-num';
-             const readingDate = getReadingDate(currentYear, month, idx);
-             dayNum.textContent = formatDate(readingDate);
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = originalKey.replace(/[^a-zA-Z0-9]/g, '-');
+            checkbox.checked = checkState[originalKey] || false;
+            checkbox.addEventListener('change', () => {
+              checkState[originalKey] = !checkState[originalKey];
+              saveProgress();
+            });
 
-             const readingSpan = document.createElement('span');
-             readingSpan.className = 'reading';
-             readingSpan.textContent = reading;
+            const label = document.createElement('label');
+            label.htmlFor = checkbox.id;
 
-             label.appendChild(dayNum);
-             label.appendChild(readingSpan);
+            const dayNum = document.createElement('span');
+            dayNum.className = 'day-num';
+            dayNum.textContent = formatDate(date);
 
-             dayDiv.appendChild(checkbox);
-             dayDiv.appendChild(label);
-             contentDiv.appendChild(dayDiv);
-           });
+            const readingSpan = document.createElement('span');
+            readingSpan.className = 'reading';
+            readingSpan.textContent = reading;
 
-           // Check if month is completed and apply styles
-           const monthKey = `${currentPlan}-${currentYear}-${month}`;
-           const isCompleted = isMonthCompleted(currentYear, month);
-           const isCollapsed = localStorage.getItem(`month-collapsed-${monthKey}`) === 'true';
+            label.appendChild(dayNum);
+            label.appendChild(readingSpan);
 
-           if (isCompleted) {
-             monthDiv.classList.add('completed');
-             if (!isCollapsed) {
-               localStorage.setItem(`month-collapsed-${monthKey}`, 'true');
-             }
-             monthDiv.classList.add('collapsed');
-           } else if (isCollapsed) {
-             monthDiv.classList.add('collapsed');
-           }
+            dayDiv.appendChild(checkbox);
+            dayDiv.appendChild(label);
+            contentDiv.appendChild(dayDiv);
+          });
 
-           container.appendChild(monthDiv);
-         });
-        }
+          container.appendChild(monthDiv);
+        });
+      }
 
-        updateProgress();
-        }
+      updateProgress();
+    }
 
     function switchYear(year) {
       currentYear = year;
