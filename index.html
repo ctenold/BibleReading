@@ -303,6 +303,7 @@
       <option value="esvthroughthebible">ESV Through the Bible</option>
       <option value="esvliterarystudybible">ESV Literary Study Bible</option>
       <option value="heartlightotandnt">Heartlight OT and NT</option>
+      <option value="fiveday2026">2026 5-Day Bible Reading Schedule</option>
     </select>
   </div>
 
@@ -337,6 +338,7 @@
       await loadPlan('esvthroughthebible');
       await loadPlan('esvliterarystudybible');
       await loadPlan('heartlightotandnt');
+      await loadPlan('fiveday2026');
     }
 
     let currentPlan = 'mcheyne';
@@ -480,7 +482,13 @@
            monthDiv.id = `month-${currentPlan}-${currentYear}-${month}`;
 
            const title = document.createElement('h2');
-           title.textContent = plan.duration > 1 ? `${month} (Year ${currentYear})` : month;
+           let titleText = month;
+           if (plan.type === 'weekly') {
+             titleText = `Week ${month.replace('Week', '')}`;
+           } else if (plan.duration > 1) {
+             titleText = `${month} (Year ${currentYear})`;
+           }
+           title.textContent = titleText;
            title.addEventListener('click', () => toggleMonth(monthDiv, currentYear, month));
            monthDiv.appendChild(title);
 
@@ -580,7 +588,7 @@
 
       // Update year selector visibility
       const yearSelector = document.getElementById('yearSelector');
-      if (plans[planKey].duration > 1) {
+      if (plans[planKey].duration > 1 && plans[planKey].type !== 'weekly') {
         yearSelector.style.display = 'block';
         document.getElementById('year1Btn').classList.toggle('active', currentYear === 1);
         document.getElementById('year2Btn').classList.toggle('active', currentYear === 2);

@@ -2,6 +2,7 @@
   "esvliterarystudybible": {
     "name": "ESV Literary Study Bible Plan",
     "description": "ESV Literary Study Bible<br /><a target='_new' href='http://www.esv.org/biblereadingplans'>www.esv.org</a>",
+    "type": "daily",
     "duration": 1,
     "data": {
       "year1": {

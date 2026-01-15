@@ -2,6 +2,7 @@
   "esvthroughthebible": {
     "name": "Through The Bible",
     "description": "Through the Bible<br /><a target='_new' href='http://www.esv.org/biblereadingplans'>www.esv.org</a>",
+    "type": "daily",
     "duration": 1,
     "data": {
       "year1": {

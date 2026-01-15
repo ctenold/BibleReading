@@ -2,6 +2,7 @@
   "oneyearchronological": {
     "name": "One Year Chronological",
     "description": "One Year Chronological<br /><a target='_new' href='http://www.oneyearbibleonline.com'>www.oneyearbibleonline.com</a>",
+    "type": "daily",
     "duration": 1,
     "data": {
       "year1": {

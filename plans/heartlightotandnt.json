@@ -2,6 +2,7 @@
   "heartlightotandnt": {
     "name": "Old and New Testament",
     "description": "Old Testament and New Testament<br /><a target='_new' href='http://www.heartlight.org/devotionals/reading_plans/'>www.heartlight.org</a>",
+    "type": "daily",
     "duration": 1,
     "data": {
       "year1": {
