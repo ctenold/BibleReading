@@ -305,6 +305,9 @@
       <option value="heartlightotandnt">Heartlight OT and NT</option>
       <option value="fiveday2026">2026 5-Day Bible Reading Schedule</option>
     </select>
+    <br>
+    <label for="startDateInput">Start Date:</label>
+    <input type="date" id="startDateInput">
   </div>
 
   <div class="year-selector" id="yearSelector">
@@ -344,11 +347,66 @@
     let currentPlan = 'mcheyne';
     let currentYear = 1;
     let checkState = {};
+    let startDate = null; // Will be a Date object
 
     // Google Drive variables
     let isSignedIn = false;
     let accessToken = null;
     let driveFileId = null;
+
+    // Date helper functions
+    function getStartDateForPlan(planKey) {
+      const saved = localStorage.getItem(`bible-start-date-${planKey}`);
+      if (saved) {
+        return new Date(saved);
+      }
+      // Default to Jan 1 of current year
+      return new Date(new Date().getFullYear(), 0, 1);
+    }
+
+    function setStartDateForPlan(planKey, date) {
+      localStorage.setItem(`bible-start-date-${planKey}`, date.toISOString().split('T')[0]);
+    }
+
+    function getReadingDate(year, month, dayIndex) {
+      if (!startDate) return null;
+
+      const plan = plans[currentPlan];
+      let totalDays = 0;
+
+      // Calculate total days up to this year/month/day
+      for (let y = 1; y < year; y++) {
+        const yearData = plan.data[`year${y}`];
+        if (yearData) {
+          Object.values(yearData).forEach(readings => {
+            totalDays += readings.length;
+          });
+        }
+      }
+
+      const yearData = plan.data[`year${year}`];
+      if (yearData) {
+        Object.keys(yearData).every(m => {
+          if (m === month) {
+            totalDays += dayIndex;
+            return false; // break
+          } else {
+            totalDays += yearData[m].length;
+            return true;
+          }
+        });
+      }
+
+      const readingDate = new Date(startDate);
+      readingDate.setDate(readingDate.getDate() + totalDays);
+      return readingDate;
+    }
+
+    function formatDate(date) {
+      if (!date) return '';
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return `${months[date.getMonth()]} ${date.getDate()}`;
+    }
 
     function loadProgress() {
       try {
@@ -512,7 +570,8 @@
 
              const dayNum = document.createElement('span');
              dayNum.className = 'day-num';
-             dayNum.textContent = idx + 1;
+             const readingDate = getReadingDate(currentYear, month, idx);
+             dayNum.textContent = formatDate(readingDate);
 
              const readingSpan = document.createElement('span');
              readingSpan.className = 'reading';
@@ -562,6 +621,10 @@
       currentPlan = planKey;
       currentYear = 1; // Reset to year 1 for new plan
 
+      // Load start date for this plan
+      startDate = getStartDateForPlan(planKey);
+      document.getElementById('startDateInput').value = startDate.toISOString().split('T')[0];
+
       // Load progress for this plan
       try {
         const saved = localStorage.getItem(`bible-progress-${currentPlan}`);
@@ -606,6 +669,12 @@
 
     document.getElementById('year1Btn').addEventListener('click', () => switchYear(1));
     document.getElementById('year2Btn').addEventListener('click', () => switchYear(2));
+
+    document.getElementById('startDateInput').addEventListener('change', (e) => {
+      startDate = new Date(e.target.value);
+      setStartDateForPlan(currentPlan, startDate);
+      renderCalendar();
+    });
 
     // Google Drive functions
     let tokenClient;
