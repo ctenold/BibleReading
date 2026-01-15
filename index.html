@@ -726,10 +726,9 @@
 
       // Load start date for this plan
       startDate = getStartDateForPlan(planKey);
-      const year = startDate.getFullYear();
-      const month = String(startDate.getMonth() + 1).padStart(2, '0');
-      const day = String(startDate.getDate()).padStart(2, '0');
-      document.getElementById('startDateInput').value = `${year}-${month}-${day}`;
+      // Set date input using the stored value directly to avoid timezone conversion
+      const saved = localStorage.getItem(`bible-start-date-${planKey}`);
+      document.getElementById('startDateInput').value = saved || '2026-01-01';
 
       // Load progress for this plan
       try {
