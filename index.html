@@ -802,14 +802,14 @@
       // Load start date for this plan
       startDate = getStartDateForPlan(planKey);
       // Set date input using the stored value directly to avoid timezone conversion
-      const saved = localStorage.getItem(`bible-start-date-${planKey}`);
-      document.getElementById('startDateInput').value = saved || '2026-01-01';
+      const savedDate = localStorage.getItem(`bible-start-date-${planKey}`);
+      document.getElementById('startDateInput').value = savedDate || '2026-01-01';
 
       // Load progress for this plan
       try {
-        const saved = localStorage.getItem(`bible-progress-${currentPlan}`);
-        if (saved) {
-          checkState = JSON.parse(saved);
+        const savedProgress = localStorage.getItem(`bible-progress-${currentPlan}`);
+        if (savedProgress) {
+          checkState = JSON.parse(savedProgress);
         } else {
           checkState = {};
         }
@@ -826,7 +826,7 @@
 
       // Update UI
       document.getElementById('planTitle').textContent = plans[planKey].name;
-      document.getElementById('planDescription').innerHTML = plans[planKey].description;
+      document.getElementById('planDescription').textContent = plans[planKey].description;
       document.getElementById('planSelect').value = planKey;
 
       // Update year selector visibility
@@ -851,9 +851,14 @@
     document.getElementById('year2Btn').addEventListener('click', () => switchYear(2));
 
     document.getElementById('startDateInput').addEventListener('change', (e) => {
-      startDate = new Date(e.target.value);
-      setStartDateForPlan(currentPlan, startDate);
-      renderCalendar();
+      // Parse date string directly to avoid timezone issues
+      const dateValue = e.target.value;
+      if (dateValue) {
+        const [year, month, day] = dateValue.split('-').map(Number);
+        startDate = new Date(year, month - 1, day);
+        setStartDateForPlan(currentPlan, startDate);
+        renderCalendar();
+      }
     });
 
     // Google Drive functions
@@ -905,6 +910,13 @@
       document.getElementById('syncStatus').textContent = '';
     }
 
+    function handleTokenExpiry() {
+      isSignedIn = false;
+      accessToken = null;
+      closeSyncModal();
+      tokenClient.requestAccessToken();
+    }
+
     async function exportToDrive() {
       if (!accessToken) return;
 
@@ -954,6 +966,8 @@
           localStorage.setItem('bible-drive-file-id', driveFileId);
           status.textContent = 'Exported successfully to Google Drive';
           setTimeout(() => closeSyncModal(), 2000);
+        } else if (response.status === 401) {
+          handleTokenExpiry();
         } else {
           throw new Error(`Upload failed: ${response.status}`);
         }
@@ -976,6 +990,11 @@
             'Authorization': 'Bearer ' + accessToken
           }
         });
+
+        if (searchResponse.status === 401) {
+          handleTokenExpiry();
+          return;
+        }
 
         const searchData = await searchResponse.json();
         const files = searchData.files || [];
@@ -1008,22 +1027,39 @@
           }
         });
 
+        if (downloadResponse.status === 401) {
+          handleTokenExpiry();
+          return;
+        }
+
         const data = await downloadResponse.json();
 
-        // Validate data structure
-        if (data.checkState && data.currentPlan) {
-          checkState = data.checkState;
-          currentPlan = data.currentPlan;
-          currentYear = data.currentYear || 1;
-
-          saveProgress();
-          switchPlan(currentPlan);
-
-          status.textContent = 'Imported successfully from Google Drive';
-          setTimeout(() => closeSyncModal(), 2000);
-        } else {
-          throw new Error('Invalid file format');
+        // Validate data structure thoroughly
+        if (!data || typeof data !== 'object') {
+          throw new Error('Invalid file format: not a valid JSON object');
         }
+        if (!data.checkState || typeof data.checkState !== 'object') {
+          throw new Error('Invalid file format: missing or invalid checkState');
+        }
+        if (!data.currentPlan || typeof data.currentPlan !== 'string') {
+          throw new Error('Invalid file format: missing or invalid currentPlan');
+        }
+        if (!plans[data.currentPlan]) {
+          throw new Error(`Invalid file format: unknown plan "${data.currentPlan}"`);
+        }
+        if (data.currentYear !== undefined && (typeof data.currentYear !== 'number' || data.currentYear < 1)) {
+          throw new Error('Invalid file format: invalid currentYear');
+        }
+
+        checkState = data.checkState;
+        currentPlan = data.currentPlan;
+        currentYear = data.currentYear || 1;
+
+        saveProgress();
+        switchPlan(currentPlan);
+
+        status.textContent = 'Imported successfully from Google Drive';
+        setTimeout(() => closeSyncModal(), 2000);
       } catch (error) {
         console.error('Import error:', error);
         status.textContent = 'Import failed: ' + error.message;
