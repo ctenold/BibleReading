@@ -10,6 +10,29 @@
   <link rel="apple-touch-icon" href="/BibleReading/icon-192.png">
   <title>M'Cheyne Bible Reading Plan</title>
   <style>
+    :root {
+      --bg-primary: #f5f5f5;
+      --bg-secondary: white;
+      --text-primary: #333;
+      --text-secondary: #666;
+      --text-muted: #999;
+      --border-color: #eee;
+      --shadow: rgba(0,0,0,0.1);
+      --accent: #4CAF50;
+      --accent-light: #66BB6A;
+      --accent-dark: #2E7D32;
+    }
+
+    [data-theme="dark"] {
+      --bg-primary: #1a1a1a;
+      --bg-secondary: #2d2d2d;
+      --text-primary: #e0e0e0;
+      --text-secondary: #b0b0b0;
+      --text-muted: #888;
+      --border-color: #444;
+      --shadow: rgba(0,0,0,0.3);
+    }
+
     * {
       margin: 0;
       padding: 0;
@@ -22,20 +45,46 @@
       padding: 20px;
       max-width: 1400px;
       margin: 0 auto;
-      background: #f5f5f5;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      transition: background 0.3s, color 0.3s;
     }
     
     h1 {
       text-align: center;
       margin-bottom: 10px;
-      color: #333;
+      color: var(--text-primary);
     }
     
     .subtitle {
       text-align: center;
-      color: #666;
+      color: var(--text-secondary);
       margin-bottom: 20px;
       font-size: 0.9em;
+    }
+
+    .theme-toggle {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      width: 44px;
+      height: 44px;
+      border: none;
+      border-radius: 50%;
+      background: var(--bg-secondary);
+      box-shadow: 0 2px 8px var(--shadow);
+      cursor: pointer;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .theme-toggle:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px var(--shadow);
     }
     
     .year-selector {
@@ -47,22 +96,22 @@
       padding: 10px 30px;
       margin: 0 10px;
       font-size: 16px;
-      border: 2px solid #4CAF50;
-      background: white;
-      color: #4CAF50;
+      border: 2px solid var(--accent);
+      background: var(--bg-secondary);
+      color: var(--accent);
       border-radius: 5px;
       cursor: pointer;
       transition: all 0.3s;
     }
     
     .year-selector button.active {
-      background: #4CAF50;
+      background: var(--accent);
       color: white;
     }
     
     .year-selector button:hover {
       transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 8px var(--shadow);
     }
     
     .months-grid {
@@ -72,23 +121,23 @@
     }
     
     .month {
-      background: white;
+      background: var(--bg-secondary);
       border-radius: 8px;
       padding: 20px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 4px var(--shadow);
     }
     
     .month h2 {
       margin-bottom: 15px;
-      color: #4CAF50;
-      border-bottom: 2px solid #4CAF50;
+      color: var(--accent);
+      border-bottom: 2px solid var(--accent);
       padding-bottom: 8px;
       cursor: pointer;
       transition: all 0.3s;
     }
 
     .month h2:hover {
-      color: #66BB6A;
+      color: var(--accent-light);
     }
 
     .month.collapsed .month-content {
@@ -96,20 +145,20 @@
     }
 
     .month.completed h2 {
-      color: #2E7D32;
+      color: var(--accent-dark);
       font-weight: bold;
     }
 
     .month.completed h2::after {
       content: " ✓";
-      color: #2E7D32;
+      color: var(--accent-dark);
     }
     
     .day {
       display: flex;
       align-items: center;
       padding: 8px 0;
-      border-bottom: 1px solid #eee;
+      border-bottom: 1px solid var(--border-color);
     }
     
     .day:last-child {
@@ -134,34 +183,34 @@
       font-weight: bold;
       margin-right: 10px;
       min-width: 30px;
-      color: #666;
+      color: var(--text-secondary);
     }
     
     .reading {
-      color: #333;
+      color: var(--text-primary);
       flex: 1;
     }
     
     .day input[type="checkbox"]:checked + label .reading {
       text-decoration: line-through;
-      color: #999;
+      color: var(--text-muted);
     }
     
     .progress {
       position: sticky;
       top: 20px;
-      background: white;
+      background: var(--bg-secondary);
       padding: 15px;
       border-radius: 8px;
       margin-bottom: 20px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 4px var(--shadow);
       text-align: center;
     }
     
     .progress-bar {
       width: 100%;
       height: 30px;
-      background: #e0e0e0;
+      background: var(--border-color);
       border-radius: 15px;
       overflow: hidden;
       margin: 10px 0;
@@ -170,7 +219,7 @@
     .progress-fill {
       min-width: 50px;
       height: 100%;
-      background: linear-gradient(90deg, #4CAF50, #66BB6A);
+      background: linear-gradient(90deg, var(--accent), var(--accent-light));
       transition: width 0.3s ease;
       display: flex;
       align-items: center;
@@ -187,22 +236,22 @@
     .plan-selector label {
       margin-right: 10px;
       font-weight: bold;
-      color: #333;
+      color: var(--text-primary);
     }
 
     .plan-selector select {
       padding: 8px 12px;
       font-size: 16px;
-      border: 2px solid #4CAF50;
+      border: 2px solid var(--accent);
       border-radius: 5px;
-      background: white;
-      color: #333;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
       cursor: pointer;
     }
 
     .plan-selector select:focus {
       outline: none;
-      border-color: #66BB6A;
+      border-color: var(--accent-light);
     }
 
     .sync-button {
@@ -213,7 +262,7 @@
       padding: 10px 15px;
       font-size: 14px;
       border: 2px solid #2196F3;
-      background: white;
+      background: var(--bg-secondary);
       color: #2196F3;
       border-radius: 5px;
       cursor: pointer;
@@ -243,10 +292,10 @@
     }
 
     .sync-modal-content {
-      background: white;
+      background: var(--bg-secondary);
       padding: 20px;
       border-radius: 8px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      box-shadow: 0 4px 8px var(--shadow);
       text-align: center;
       max-width: 300px;
       width: 90%;
@@ -254,34 +303,35 @@
 
     .sync-modal-content h3 {
       margin-bottom: 15px;
-      color: #333;
+      color: var(--text-primary);
     }
 
     .sync-modal-content button {
       padding: 10px 20px;
       margin: 5px;
       font-size: 14px;
-      border: 2px solid #4CAF50;
-      background: white;
-      color: #4CAF50;
+      border: 2px solid var(--accent);
+      background: var(--bg-secondary);
+      color: var(--accent);
       border-radius: 5px;
       cursor: pointer;
       transition: all 0.3s;
     }
 
     .sync-modal-content button:hover {
-      background: #4CAF50;
+      background: var(--accent);
       color: white;
     }
 
     .sync-status {
       margin-top: 10px;
       font-size: 0.9em;
-      color: #666;
+      color: var(--text-secondary);
     }
   </style>
 </head>
 <body>
+  <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">🌙</button>
   <h1 id="planTitle">M'Cheyne Bible Reading Plan</h1>
   <p class="subtitle" id="planDescription">A two-year plan to read through the entire Bible</p>
 
@@ -327,6 +377,31 @@
 
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script>
+    // Theme toggle functionality
+    function initTheme() {
+      const saved = localStorage.getItem('bible-theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const theme = saved || (prefersDark ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', theme);
+      updateThemeIcon(theme);
+    }
+
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('bible-theme', next);
+      updateThemeIcon(next);
+    }
+
+    function updateThemeIcon(theme) {
+      const btn = document.getElementById('themeToggle');
+      btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+    }
+
+    document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+    initTheme();
+
     let plans = {};
 
     async function loadPlan(planKey) {
