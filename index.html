@@ -64,27 +64,24 @@
     }
 
     .theme-toggle {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      width: 44px;
-      height: 44px;
-      border: none;
+      width: 36px;
+      height: 36px;
+      border: 2px solid var(--accent);
       border-radius: 50%;
       background: var(--bg-secondary);
-      box-shadow: 0 2px 8px var(--shadow);
       cursor: pointer;
-      font-size: 20px;
-      display: flex;
+      font-size: 18px;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
-      z-index: 1000;
-      transition: transform 0.3s, box-shadow 0.3s;
+      vertical-align: middle;
+      margin-left: 15px;
+      transition: transform 0.3s, background 0.3s;
     }
 
     .theme-toggle:hover {
       transform: scale(1.1);
-      box-shadow: 0 4px 12px var(--shadow);
+      background: var(--accent);
     }
     
     .year-selector {
@@ -331,7 +328,6 @@
   </style>
 </head>
 <body>
-  <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">🌙</button>
   <h1 id="planTitle">M'Cheyne Bible Reading Plan</h1>
   <p class="subtitle" id="planDescription">A two-year plan to read through the entire Bible</p>
 
@@ -355,6 +351,7 @@
       <option value="heartlightotandnt">Heartlight OT and NT</option>
       <option value="fiveday2026">2026 5-Day Bible Reading Schedule</option>
     </select>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">🌙</button>
     <br>
     <label for="startDateInput">Start Date:</label>
     <input type="date" id="startDateInput">
