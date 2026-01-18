@@ -230,13 +230,22 @@
       margin-bottom: 20px;
     }
 
+    .selector-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
     .plan-selector label {
-      margin-right: 10px;
+      margin-right: 0;
       font-weight: bold;
       color: var(--text-primary);
     }
 
-    .plan-selector select {
+    .plan-selector select,
+    .plan-selector input[type="date"] {
       padding: 8px 12px;
       font-size: 16px;
       border: 2px solid var(--accent);
@@ -246,9 +255,99 @@
       cursor: pointer;
     }
 
-    .plan-selector select:focus {
+    .plan-selector select:focus,
+    .plan-selector input[type="date"]:focus {
       outline: none;
       border-color: var(--accent-light);
+    }
+    
+    .plan-selector .theme-toggle {
+      margin-left: 0;
+      vertical-align: middle;
+    }
+
+    .today-widget {
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 12px var(--shadow);
+      position: sticky;
+      top: 20px;
+      z-index: 10;
+    }
+
+    .today-widget h3 {
+      margin: 0 0 10px 0;
+      font-size: 1.1em;
+      font-weight: bold;
+    }
+
+    .today-widget .date {
+      font-size: 0.9em;
+      opacity: 0.9;
+      margin-bottom: 12px;
+    }
+
+    .today-widget .readings {
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+
+    .today-widget .reading-label {
+      font-weight: bold;
+      margin-top: 8px;
+      margin-bottom: 4px;
+    }
+
+    .today-widget .reading-text {
+      font-size: 0.95em;
+      opacity: 0.95;
+    }
+
+    .today-widget .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255,255,255,0.3);
+    }
+
+    .today-widget button {
+      padding: 6px 12px;
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.5);
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9em;
+      transition: all 0.3s;
+    }
+
+    .today-widget button:hover {
+      background: rgba(255,255,255,0.3);
+    }
+
+    .today-widget .mark-done {
+      flex: 1;
+    }
+
+    .today-widget .mark-done.completed {
+      background: rgba(255,255,255,0.4);
+      border-color: rgba(255,255,255,0.7);
+      font-weight: bold;
+    }
+
+    .day.today {
+      background: rgba(76, 175, 80, 0.15);
+      border-radius: 4px;
+      padding: 8px 4px;
+    }
+
+    .day.today .day-num {
+      color: var(--accent);
+      font-weight: bold;
     }
 
     .sync-button {
@@ -342,24 +441,37 @@
   </div>
 
   <div class="plan-selector">
-    <label for="planSelect">Select Reading Plan:</label>
-    <select id="planSelect">
-      <option value="mcheyne">M'Cheyne Bible Reading Plan (2 years)</option>
-      <option value="oneyearchronological">One Year Chronological Bible Reading Plan</option>
-      <option value="esvthroughthebible">ESV Through the Bible</option>
-      <option value="esvliterarystudybible">ESV Literary Study Bible</option>
-      <option value="heartlightotandnt">Heartlight OT and NT</option>
-      <option value="fiveday2026">2026 5-Day Bible Reading Schedule</option>
-    </select>
-    <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">🌙</button>
-    <br>
-    <label for="startDateInput">Start Date:</label>
-    <input type="date" id="startDateInput">
+    <div class="selector-row">
+      <label for="planSelect">Select Reading Plan:</label>
+      <select id="planSelect">
+        <option value="mcheyne">M'Cheyne Bible Reading Plan (2 years)</option>
+        <option value="oneyearchronological">One Year Chronological Bible Reading Plan</option>
+        <option value="esvthroughthebible">ESV Through the Bible</option>
+        <option value="esvliterarystudybible">ESV Literary Study Bible</option>
+        <option value="heartlightotandnt">Heartlight OT and NT</option>
+        <option value="fiveday2026">2026 5-Day Bible Reading Schedule</option>
+      </select>
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">🌙</button>
+    </div>
+    <div class="selector-row">
+      <label for="startDateInput">Start Date:</label>
+      <input type="date" id="startDateInput">
+    </div>
   </div>
 
   <div class="year-selector" id="yearSelector">
     <button id="year1Btn" class="active">Year 1</button>
     <button id="year2Btn">Year 2</button>
+  </div>
+
+  <div id="todayWidget" class="today-widget" style="display: none;">
+    <h3>📖 Today's Reading</h3>
+    <div class="date" id="todayDate"></div>
+    <div class="readings" id="todayReadings"></div>
+    <div class="actions">
+      <button class="mark-done" id="markTodayDone" onclick="markTodayDone()">✓ Mark as Done</button>
+      <button onclick="scrollToToday()">⬇️ Scroll to Today</button>
+    </div>
   </div>
 
   <div class="progress">
@@ -539,6 +651,7 @@
         console.error('Save failed:', error);
       }
       updateProgress();
+      updateTodayWidget();
     }
 
     function isMonthCompleted(year, month) {
@@ -614,6 +727,133 @@
       document.getElementById('progressText').textContent = `${checked} of ${total} days complete`;
       document.getElementById('progressFill').style.width = pct + '%';
       document.getElementById('progressFill').textContent = pct + '%';
+    }
+
+    // Today's reading functions
+    function getTodayInfo() {
+      const today = new Date();
+      const plan = plans[currentPlan];
+      if (!plan || !startDate) return null;
+
+      // Calculate days elapsed
+      const daysElapsed = Math.floor((today - startDate) / (1000 * 60 * 60 * 24));
+      
+      // Find which year this falls into
+      let dayCounter = 0;
+      let monthKey = null;
+      let dayIndex = 0;
+
+      const yearData = plan.data[`year${currentYear}`];
+      if (!yearData) return null;
+
+      const months = Object.keys(yearData).sort();
+      
+      for (const month of months) {
+        const readings = yearData[month];
+        if (dayCounter + readings.length > daysElapsed) {
+          monthKey = month;
+          dayIndex = daysElapsed - dayCounter;
+          break;
+        }
+        dayCounter += readings.length;
+      }
+
+      if (!monthKey || !yearData[monthKey] || !yearData[monthKey][dayIndex]) {
+        return null;
+      }
+
+      const readingDate = getReadingDate(currentYear, monthKey, dayIndex);
+      const reading = yearData[monthKey][dayIndex];
+      const key = `${currentPlan}-${currentYear}-${monthKey}-${dayIndex}`;
+
+      return {
+        date: readingDate,
+        reading,
+        key,
+        monthKey,
+        dayIndex
+      };
+    }
+
+    function updateTodayWidget() {
+      const todayInfo = getTodayInfo();
+      const widget = document.getElementById('todayWidget');
+      
+      if (!todayInfo) {
+        widget.style.display = 'none';
+        return;
+      }
+
+      widget.style.display = 'block';
+
+      // Update date display
+      const today = new Date();
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const dateStr = `${monthNames[today.getMonth()]} ${today.getDate()}, ${today.getFullYear()}`;
+      document.getElementById('todayDate').textContent = dateStr;
+
+      // Update readings
+      const readingsDiv = document.getElementById('todayReadings');
+      readingsDiv.innerHTML = `<div class="reading-text">${todayInfo.reading}</div>`;
+
+      // Update button state
+      const markBtn = document.getElementById('markTodayDone');
+      const isComplete = checkState[todayInfo.key];
+      if (isComplete) {
+        markBtn.textContent = '✓ Completed Today';
+        markBtn.classList.add('completed');
+      } else {
+        markBtn.textContent = '✓ Mark as Done';
+        markBtn.classList.remove('completed');
+      }
+
+      // Highlight today in calendar
+      highlightToday(todayInfo);
+    }
+
+    function highlightToday(todayInfo) {
+      // Remove old highlight
+      document.querySelectorAll('.day.today').forEach(el => {
+        el.classList.remove('today');
+      });
+
+      if (!todayInfo) return;
+
+      // Find and highlight today's element
+      const dayElements = document.querySelectorAll('.day');
+      const today = new Date();
+      const todayDateStr = formatDate(today);
+
+      dayElements.forEach(el => {
+        const dayNumSpan = el.querySelector('.day-num');
+        if (dayNumSpan && dayNumSpan.textContent === todayDateStr) {
+          el.classList.add('today');
+        }
+      });
+    }
+
+    function markTodayDone() {
+      const todayInfo = getTodayInfo();
+      if (!todayInfo) return;
+
+      checkState[todayInfo.key] = !checkState[todayInfo.key];
+      saveProgress();
+      updateProgress();
+      updateTodayWidget();
+    }
+
+    function scrollToToday() {
+      const dayElements = document.querySelectorAll('.day');
+      const today = new Date();
+      const todayDateStr = formatDate(today);
+
+      for (const el of dayElements) {
+        const dayNumSpan = el.querySelector('.day-num');
+        if (dayNumSpan && dayNumSpan.textContent === todayDateStr) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return;
+        }
+      }
     }
 
     function renderCalendar() {
@@ -779,10 +1019,11 @@
         });
       }
 
-      updateProgress();
-    }
+       updateProgress();
+       updateTodayWidget();
+      }
 
-    function switchYear(year) {
+      function switchYear(year) {
       currentYear = year;
       localStorage.setItem(`bible-year-${currentPlan}`, year.toString());
       document.getElementById('year1Btn').classList.toggle('active', year === 1);
@@ -823,7 +1064,7 @@
 
       // Update UI
       document.getElementById('planTitle').textContent = plans[planKey].name;
-      document.getElementById('planDescription').textContent = plans[planKey].description;
+      document.getElementById('planDescription').innerHTML = plans[planKey].description;
       document.getElementById('planSelect').value = planKey;
 
       // Update year selector visibility
