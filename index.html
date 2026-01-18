@@ -297,10 +297,22 @@
       z-index: 10;
     }
 
+    .today-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
     .today-widget h3 {
-      margin: 0 0 10px 0;
+      margin: 0;
       font-size: 1.1em;
       font-weight: bold;
+    }
+
+    .today-actions-top {
+      display: flex;
+      gap: 8px;
     }
 
     .today-widget .date {
@@ -371,21 +383,35 @@
       font-weight: bold;
     }
 
-    .today-widget .sync-button,
-    .today-widget .export-btn {
+    .today-actions-top .sync-button {
       position: relative;
       top: auto;
       right: auto;
       margin-top: 0;
       padding: 6px 12px;
-      font-size: 0.9em;
+      font-size: 0.85em;
       border: 1px solid rgba(255,255,255,0.5);
       background: rgba(255,255,255,0.2);
       color: white;
     }
 
-    .today-widget .sync-button:hover,
-    .today-widget .export-btn:hover {
+    .today-actions-top .sync-button:hover {
+      background: rgba(255,255,255,0.3);
+    }
+
+    .today-actions-top .export-btn {
+      position: relative;
+      top: auto;
+      right: auto;
+      margin-top: 0;
+      padding: 6px 12px;
+      font-size: 0.85em;
+      border: 1px solid rgba(255,255,255,0.5);
+      background: rgba(255,255,255,0.2);
+      color: white;
+    }
+
+    .today-actions-top .export-btn:hover {
       background: rgba(255,255,255,0.3);
     }
 
@@ -744,14 +770,18 @@
   </div>
 
   <div id="todayWidget" class="today-widget" style="display: none;">
-    <h3>📖 Today's Reading</h3>
+    <div class="today-header">
+      <h3>📖 Today's Reading</h3>
+      <div class="today-actions-top">
+        <button class="sync-button" onclick="openSyncModal()">Sync with Google Drive</button>
+        <button class="export-btn" onclick="openExportModal()">Export to PDF</button>
+      </div>
+    </div>
     <div class="date" id="todayDate"></div>
     <div class="readings" id="todayReadings"></div>
     <div class="actions">
       <button class="mark-done" id="markTodayDone" onclick="markTodayDone()">✓ Mark as Done</button>
       <button onclick="scrollToToday()">⬇️ Scroll to Today</button>
-      <button class="sync-button" onclick="openSyncModal()">Sync with Google Drive</button>
-      <button class="export-btn" onclick="openExportModal()">Export to PDF</button>
     </div>
   </div>
 
@@ -760,6 +790,8 @@
     <div class="progress-bar">
       <div class="progress-fill" id="progressFill" style="width: 0%">0%</div>
     </div>
+    <button class="sync-button" onclick="openSyncModal()">Sync with Google Drive</button>
+    <button class="export-btn" onclick="openExportModal()">Export to PDF</button>
   </div>
 
   <div id="exportModal" class="export-modal">
@@ -2160,6 +2192,9 @@
             const localReadingColWidth = colWidth - localDateColWidth;
             const localReadingW = localReadingColWidth - 3;
             
+            const dateFontSize = Math.min(7, actualCellHeight * 0.35);
+            const checkboxSize = Math.min(6, actualCellHeight * 0.3);
+            
             for (let row = 0; row < numRows && readingIdx < pageReadings.length; row++) {
               for (let col = 0; col < daysPerWeek && readingIdx < pageReadings.length; col++) {
                 const item = pageReadings[readingIdx];
@@ -2183,13 +2218,14 @@
                   dateForDay.setDate(dateForDay.getDate() + startIdx + readingIdx);
                 }
                 
-                pdf.setFontSize(5);
-                pdf.rect(cellX + 2, cellY + 2, 5, 5);
+                const cellCenterY = cellY + (actualCellHeight / 2);
+                
+                pdf.rect(cellX + 2, cellCenterY - checkboxSize - 1, checkboxSize, checkboxSize);
                 
                 pdf.setFont('helvetica', 'bold');
-                pdf.setFontSize(5.5);
+                pdf.setFontSize(dateFontSize);
                 const dateStr = `${dateForDay.getMonth() + 1}/${dateForDay.getDate()}`;
-                pdf.text(dateStr, cellX + 9, cellY + 6);
+                pdf.text(dateStr, cellX + 2 + checkboxSize + 1, cellCenterY + (dateFontSize / 3));
                 
                 const readingX = cellX + localDateColWidth + 1;
                 let reading = item.reading;
@@ -2202,8 +2238,15 @@
                 
                 pdf.setFont('helvetica', 'normal');
                 const lines = wrapTextForRender(pdf, reading, localReadingW - 2, optimalFont.maxLines);
+                const totalTextHeight = lines.length * optimalFont.lineHeight;
+                const textStartY = cellCenterY - (totalTextHeight / 2) + (optimalFont.fontSize * 0.8);
+                
                 lines.forEach((line, lineIdx) => {
-                  pdf.text(line, readingX, cellY + 4 + optimalFont.fontSize + (lineIdx * optimalFont.lineHeight));
+                  let displayLine = line;
+                  while (pdf.getTextWidth(displayLine) > localReadingW - 2 && displayLine.length > 0) {
+                    displayLine = displayLine.slice(0, -1);
+                  }
+                  pdf.text(displayLine, readingX, textStartY + (lineIdx * optimalFont.lineHeight));
                 });
                 
                 readingIdx++;
