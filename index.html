@@ -392,16 +392,17 @@
       padding: 6px 12px;
       font-size: 0.85em;
       border: 2px solid #2196F3;
-      background: rgba(33, 150, 243, 0.1);
-      color: #2196F3;
+      background: #2196F3;
+      color: white;
       border-radius: 4px;
       cursor: pointer;
       transition: all 0.3s;
+      font-weight: 500;
     }
 
     .today-actions-top .sync-button:hover {
-      background: #2196F3;
-      color: white;
+      background: #1976D2;
+      border-color: #1976D2;
     }
 
     .today-actions-top .export-btn {
@@ -412,16 +413,17 @@
       padding: 6px 12px;
       font-size: 0.85em;
       border: 2px solid #f44336;
-      background: rgba(244, 67, 54, 0.1);
-      color: #f44336;
+      background: #f44336;
+      color: white;
       border-radius: 4px;
       cursor: pointer;
       transition: all 0.3s;
+      font-weight: 500;
     }
 
     .today-actions-top .export-btn:hover {
-      background: #f44336;
-      color: white;
+      background: #da190b;
+      border-color: #da190b;
     }
 
     .day.today {
@@ -2232,7 +2234,15 @@
                 pdf.setFont('helvetica', 'bold');
                 pdf.setFontSize(dateFontSize);
                 const dateStr = `${dateForDay.getMonth() + 1}/${dateForDay.getDate()}`;
-                pdf.text(dateStr, cellX + 2 + checkboxSize + 1, cellCenterY + (dateFontSize / 3));
+                const dateTextX = cellX + 2 + checkboxSize + 1;
+                const maxDateWidth = localDateColWidth - checkboxSize - 5;
+                
+                // Clip date text if it would overflow
+                let displayDate = dateStr;
+                while (pdf.getTextWidth(displayDate) > maxDateWidth && displayDate.length > 0) {
+                  displayDate = displayDate.slice(0, -1);
+                }
+                pdf.text(displayDate, dateTextX, cellCenterY + (dateFontSize / 3));
                 
                 const readingX = cellX + localDateColWidth + 1;
                 let reading = item.reading;
