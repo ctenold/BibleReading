@@ -1845,6 +1845,23 @@
       return d;
     }
 
+    function loadImageAsDataURL(src) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = () => resolve(null);
+        img.src = src;
+      });
+    }
+
     function abbreviateBibleReading(reading) {
       const abbreviations = {
         'Genesis': 'Gen', 'Exodus': 'Exo', 'Leviticus': 'Lev', 'Numbers': 'Num',
@@ -1920,16 +1937,18 @@
         const deepLink = `${baseUrl}?plan=${currentPlan}&start=${document.getElementById('exportStartDate').value}`;
         const qrDataURL = await generateQRCodeDataURL(deepLink);
         
+        const logoDataURL = await loadImageAsDataURL('/BibleReading/icon-192.png');
+        
         const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'letter' });
         const pageWidth = pdf.internal.pageSize.getWidth();
         const pageHeight = pdf.internal.pageSize.getHeight();
-        const margin = 30;
-        const headerHeight = 60;
+        const margin = 25;
+        const headerHeight = 38;
         
         for (let year = 1; year <= duration; year++) {
           const readings = getReadingsForPDF(plan, year);
           const totalDays = readings.length;
-          const weeksPerPage = 26;
+          const weeksPerPage = 27;
           const daysPerPage = weeksPerPage * daysPerWeek;
           
           const totalWeeks = Math.ceil(totalDays / daysPerWeek);
@@ -1946,14 +1965,12 @@
             
             if (pageReadings.length === 0) continue;
             
-            pdf.setFontSize(14);
+            pdf.setFontSize(12);
             pdf.setFont('helvetica', 'bold');
             const yearLabel = duration > 1 ? ` - Year ${year}` : '';
-            const pageLabel = pagesForYear > 1 ? ` (Page ${pageNum + 1}/${pagesForYear})` : '';
-            pdf.text(plan.name + yearLabel + pageLabel, margin, margin + 15);
+            const pageLabel = pagesForYear > 1 ? ` (${pageNum + 1}/${pagesForYear})` : '';
+            pdf.text(plan.name + yearLabel + pageLabel, margin, margin + 12);
             
-            pdf.setFontSize(9);
-            pdf.setFont('helvetica', 'normal');
             const startDateForPage = new Date(startDate);
             if (year > 1) {
               startDateForPage.setFullYear(startDateForPage.getFullYear() + (year - 1));
@@ -1964,16 +1981,18 @@
             } else {
               startDateForPage.setDate(startDateForPage.getDate() + startIdx);
             }
-            pdf.text(`Starting: ${startDateForPage.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`, margin, margin + 30);
             
-            pdf.setFontSize(7);
+            pdf.setFontSize(8);
+            pdf.setFont('helvetica', 'normal');
             const credit = plan.description || '';
-            pdf.text(credit, margin, margin + 42);
+            const dateText = startDateForPage.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            pdf.text(`${dateText}  •  ${credit}`, margin, margin + 24);
             
+            if (logoDataURL) {
+              pdf.addImage(logoDataURL, 'PNG', pageWidth - margin - 75, margin - 3, 28, 28);
+            }
             if (qrDataURL) {
-              pdf.addImage(qrDataURL, 'PNG', pageWidth - margin - 50, margin - 5, 50, 50);
-              pdf.setFontSize(6);
-              pdf.text('Scan to customize', pageWidth - margin - 50, margin + 52);
+              pdf.addImage(qrDataURL, 'PNG', pageWidth - margin - 42, margin - 3, 42, 42);
             }
             
             const tableTop = margin + headerHeight;
@@ -2052,11 +2071,11 @@
                 const dateStr = `${dateForDay.getMonth() + 1}/${dateForDay.getDate()}`;
                 pdf.text(dateStr, cellX + 9, cellY + 6);
                 
-                const readingX = cellX + dateColWidth + 2;
-                const readingW = readingColWidth - 4;
+                const readingX = cellX + dateColWidth + 1;
+                const readingW = readingColWidth - 3;
                 let reading = item.reading;
                 
-                const maxCharsPerLine = Math.floor(readingW / 2.3);
+                const maxCharsPerLine = Math.floor(readingW / 2.2);
                 let lines = wrapText(reading, maxCharsPerLine, maxLinesPerCell);
                 
                 if (lines.overflow) {
@@ -2065,9 +2084,14 @@
                 }
                 
                 pdf.setFont('helvetica', 'normal');
-                pdf.setFontSize(5.5);
+                pdf.setFontSize(5);
                 lines.lines.forEach((line, lineIdx) => {
-                  pdf.text(line, readingX, cellY + 5 + (lineIdx * lineHeight));
+                  const maxLineWidth = readingW - 2;
+                  let displayLine = line;
+                  while (pdf.getTextWidth(displayLine) > maxLineWidth && displayLine.length > 0) {
+                    displayLine = displayLine.slice(0, -1);
+                  }
+                  pdf.text(displayLine, readingX, cellY + 5 + (lineIdx * lineHeight));
                 });
                 
                 readingIdx++;
