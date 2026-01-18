@@ -236,6 +236,19 @@
       justify-content: center;
       gap: 10px;
       margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    
+    @media (max-width: 600px) {
+      .selector-row:first-child {
+        flex-direction: column;
+        gap: 8px;
+      }
+      
+      .selector-row:first-child select {
+        width: 100%;
+        max-width: 300px;
+      }
     }
 
     .plan-selector label {
@@ -738,40 +751,51 @@
       // Calculate days elapsed
       const daysElapsed = Math.floor((today - startDate) / (1000 * 60 * 60 * 24));
       
-      // Find which year this falls into
+      // Find which year and position this falls into
       let dayCounter = 0;
+      let targetYear = 1;
       let monthKey = null;
       let dayIndex = 0;
 
-      const yearData = plan.data[`year${currentYear}`];
-      if (!yearData) return null;
+      // Check all years to find where today falls
+      for (let y = 1; y <= plan.duration; y++) {
+        const yearData = plan.data[`year${y}`];
+        if (!yearData) continue;
 
-      const months = Object.keys(yearData).sort();
-      
-      for (const month of months) {
-        const readings = yearData[month];
-        if (dayCounter + readings.length > daysElapsed) {
-          monthKey = month;
-          dayIndex = daysElapsed - dayCounter;
-          break;
+        const months = Object.keys(yearData).sort();
+        
+        for (const month of months) {
+          const readings = yearData[month];
+          if (dayCounter + readings.length > daysElapsed) {
+            targetYear = y;
+            monthKey = month;
+            dayIndex = daysElapsed - dayCounter;
+            break;
+          }
+          dayCounter += readings.length;
         }
-        dayCounter += readings.length;
+        
+        if (monthKey) break;
       }
 
-      if (!monthKey || !yearData[monthKey] || !yearData[monthKey][dayIndex]) {
+      if (!monthKey) return null;
+
+      const yearData = plan.data[`year${targetYear}`];
+      if (!yearData[monthKey] || !yearData[monthKey][dayIndex]) {
         return null;
       }
 
-      const readingDate = getReadingDate(currentYear, monthKey, dayIndex);
+      const readingDate = getReadingDate(targetYear, monthKey, dayIndex);
       const reading = yearData[monthKey][dayIndex];
-      const key = `${currentPlan}-${currentYear}-${monthKey}-${dayIndex}`;
+      const key = `${currentPlan}-${targetYear}-${monthKey}-${dayIndex}`;
 
       return {
         date: readingDate,
         reading,
         key,
         monthKey,
-        dayIndex
+        dayIndex,
+        year: targetYear
       };
     }
 
