@@ -1025,17 +1025,14 @@
 
       if (!todayInfo) return;
 
-      // Find and highlight today's element
-      const dayElements = document.querySelectorAll('.day');
-      const today = new Date();
-      const todayDateStr = formatDate(today);
-
-      dayElements.forEach(el => {
-        const dayNumSpan = el.querySelector('.day-num');
-        if (dayNumSpan && dayNumSpan.textContent === todayDateStr) {
-          el.classList.add('today');
+      // Find element by checkbox ID which matches the todayInfo.key
+      const checkbox = document.getElementById(todayInfo.key);
+      if (checkbox) {
+        const dayEl = checkbox.closest('.day');
+        if (dayEl) {
+          dayEl.classList.add('today');
         }
-      });
+      }
     }
 
     function markTodayDone() {
@@ -1043,21 +1040,28 @@
       if (!todayInfo) return;
 
       checkState[todayInfo.key] = !checkState[todayInfo.key];
+      
+      // Also update the checkbox in the calendar
+      const checkbox = document.getElementById(todayInfo.key);
+      if (checkbox) {
+        checkbox.checked = checkState[todayInfo.key];
+      }
+      
       saveProgress();
       updateProgress();
       updateTodayWidget();
     }
 
     function scrollToToday() {
-      const dayElements = document.querySelectorAll('.day');
-      const today = new Date();
-      const todayDateStr = formatDate(today);
+      const todayInfo = getTodayInfo();
+      if (!todayInfo) return;
 
-      for (const el of dayElements) {
-        const dayNumSpan = el.querySelector('.day-num');
-        if (dayNumSpan && dayNumSpan.textContent === todayDateStr) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          return;
+      // Find element by checkbox ID
+      const checkbox = document.getElementById(todayInfo.key);
+      if (checkbox) {
+        const dayEl = checkbox.closest('.day');
+        if (dayEl) {
+          dayEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
       }
     }
