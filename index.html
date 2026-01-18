@@ -325,6 +325,16 @@
       opacity: 0.95;
     }
 
+    .today-widget .weekend-note {
+      font-size: 0.85em;
+      font-style: italic;
+      opacity: 0.85;
+      margin-top: 8px;
+      padding: 6px 10px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 4px;
+    }
+
     .today-widget .actions {
       display: flex;
       gap: 10px;
@@ -870,19 +880,16 @@
       // For weekly plans, calculate based on weeks and weekday
       if (plan.type === 'weekly') {
         const dayOfWeek = today.getDay(); // 0 = Sunday, 6 = Saturday
-        
-        // No reading on weekends - return null
-        if (dayOfWeek === 0 || dayOfWeek === 6) {
-          return null;
-        }
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
         // Calculate weeks elapsed since start
         const msPerDay = 1000 * 60 * 60 * 24;
         const daysElapsed = Math.floor((today - startDate) / msPerDay);
-        const weeksElapsed = Math.floor(daysElapsed / 7);
+        let weeksElapsed = Math.floor(daysElapsed / 7);
         
-        // dayOfWeek: 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri -> index 0-4
-        const readingIndex = dayOfWeek - 1;
+        // On weekends, show Friday's reading (index 4)
+        // On weekdays: Mon=0, Tue=1, Wed=2, Thu=3, Fri=4
+        const readingIndex = isWeekend ? 4 : dayOfWeek - 1;
 
         // Find which week we're in
         const yearData = plan.data['year1'];
@@ -910,7 +917,8 @@
           key,
           monthKey: weekKey,
           dayIndex: readingIndex,
-          year: 1
+          year: 1,
+          isWeekend
         };
       }
 
@@ -988,7 +996,11 @@
 
       // Update readings
       const readingsDiv = document.getElementById('todayReadings');
-      readingsDiv.innerHTML = `<div class="reading-text">${todayInfo.reading}</div>`;
+      let readingHtml = `<div class="reading-text">${todayInfo.reading}</div>`;
+      if (todayInfo.isWeekend) {
+        readingHtml += `<div class="weekend-note">Weekend - catch up on any missed readings!</div>`;
+      }
+      readingsDiv.innerHTML = readingHtml;
 
       // Update button state
       const markBtn = document.getElementById('markTodayDone');
