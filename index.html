@@ -1753,13 +1753,18 @@
     // Export to PDF functions
     function openExportModal() {
       const plan = plans[currentPlan];
-      const today = new Date().toISOString().split('T')[0];
-      document.getElementById('exportStartDate').value = today;
+      const pageStartDate = document.getElementById('startDateInput').value;
+      document.getElementById('exportStartDate').value = pageStartDate || new Date().toISOString().split('T')[0];
       document.getElementById('exportPlanName').textContent = plan.name;
       
       const duration = plan.duration || 1;
+      const isWeekly = plan.type === 'weekly';
       document.getElementById('exportDuration').textContent = duration === 1 ? '1 Year' : '2 Years';
       document.getElementById('exportPages').textContent = duration === 1 ? '2 (1 sheet front/back)' : '4 (2 sheets front/back)';
+      
+      if (isWeekly) {
+        document.getElementById('exportPages').textContent += ' (5-day/week)';
+      }
       
       document.getElementById('exportModal').classList.add('show');
     }
@@ -1829,6 +1834,69 @@
       });
     }
 
+    function getNextMonday(date) {
+      const d = new Date(date);
+      const day = d.getDay();
+      if (day === 0) {
+        d.setDate(d.getDate() + 1);
+      } else if (day !== 1) {
+        d.setDate(d.getDate() + (8 - day));
+      }
+      return d;
+    }
+
+    function abbreviateBibleReading(reading) {
+      const abbreviations = {
+        'Genesis': 'Gen', 'Exodus': 'Exo', 'Leviticus': 'Lev', 'Numbers': 'Num',
+        'Deuteronomy': 'Deu', 'Joshua': 'Jos', 'Judges': 'Jdg', 'Ruth': 'Rut',
+        '1 Samuel': '1Sa', '2 Samuel': '2Sa', '1 Kings': '1Ki', '2 Kings': '2Ki',
+        '1 Chronicles': '1Ch', '2 Chronicles': '2Ch', 'Ezra': 'Ezr', 'Nehemiah': 'Neh',
+        'Esther': 'Est', 'Job': 'Job', 'Psalms': 'Psa', 'Psalm': 'Psa',
+        'Proverbs': 'Pro', 'Ecclesiastes': 'Ecc', 'Song of Solomon': 'Son',
+        'Isaiah': 'Isa', 'Jeremiah': 'Jer', 'Lamentations': 'Lam', 'Ezekiel': 'Eze',
+        'Daniel': 'Dan', 'Hosea': 'Hos', 'Joel': 'Joe', 'Amos': 'Amo',
+        'Obadiah': 'Oba', 'Jonah': 'Jon', 'Micah': 'Mic', 'Nahum': 'Nah',
+        'Habakkuk': 'Hab', 'Zephaniah': 'Zep', 'Haggai': 'Hag', 'Zechariah': 'Zec',
+        'Malachi': 'Mal', 'Matthew': 'Mat', 'Mark': 'Mar', 'Luke': 'Luk',
+        'John': 'Joh', 'Acts': 'Act', 'Romans': 'Rom', '1 Corinthians': '1Co',
+        '2 Corinthians': '2Co', 'Galatians': 'Gal', 'Ephesians': 'Eph',
+        'Philippians': 'Php', 'Colossians': 'Col', '1 Thessalonians': '1Th',
+        '2 Thessalonians': '2Th', '1 Timothy': '1Ti', '2 Timothy': '2Ti',
+        'Titus': 'Tit', 'Philemon': 'Phm', 'Hebrews': 'Heb', 'James': 'Jam',
+        '1 Peter': '1Pe', '2 Peter': '2Pe', '1 John': '1Jo', '2 John': '2Jo',
+        '3 John': '3Jo', 'Jude': 'Jud', 'Revelation': 'Rev'
+      };
+      
+      let result = reading;
+      const sortedBooks = Object.keys(abbreviations).sort((a, b) => b.length - a.length);
+      for (const book of sortedBooks) {
+        result = result.replace(new RegExp(book, 'g'), abbreviations[book]);
+      }
+      return result;
+    }
+
+    function wrapText(text, maxCharsPerLine, maxLines) {
+      const lines = [];
+      let remaining = text;
+      
+      while (remaining.length > 0 && lines.length < maxLines) {
+        if (remaining.length <= maxCharsPerLine) {
+          lines.push(remaining);
+          remaining = '';
+          break;
+        }
+        let breakPoint = remaining.lastIndexOf(';', maxCharsPerLine);
+        if (breakPoint === -1 || breakPoint < maxCharsPerLine / 2) {
+          breakPoint = remaining.lastIndexOf(' ', maxCharsPerLine);
+        }
+        if (breakPoint === -1) breakPoint = maxCharsPerLine;
+        lines.push(remaining.substring(0, breakPoint + 1).trim());
+        remaining = remaining.substring(breakPoint + 1).trim();
+      }
+      
+      return { lines, overflow: remaining.length > 0 };
+    }
+
     async function generatePDF() {
       const status = document.getElementById('exportStatus');
       const btn = document.getElementById('generatePdfBtn');
@@ -1839,10 +1907,14 @@
       try {
         const { jsPDF } = window.jspdf;
         const plan = plans[currentPlan];
-        const startDate = new Date(document.getElementById('exportStartDate').value + 'T00:00:00');
+        let startDate = new Date(document.getElementById('exportStartDate').value + 'T00:00:00');
         const duration = plan.duration || 1;
         const isWeekly = plan.type === 'weekly';
         const daysPerWeek = isWeekly ? 5 : 7;
+        
+        if (isWeekly) {
+          startDate = getNextMonday(startDate);
+        }
         
         const baseUrl = window.location.origin + window.location.pathname;
         const deepLink = `${baseUrl}?plan=${currentPlan}&start=${document.getElementById('exportStartDate').value}`;
@@ -1859,7 +1931,9 @@
           const totalDays = readings.length;
           const weeksPerPage = 26;
           const daysPerPage = weeksPerPage * daysPerWeek;
-          const pagesForYear = Math.ceil(totalDays / daysPerPage);
+          
+          const totalWeeks = Math.ceil(totalDays / daysPerWeek);
+          const pagesForYear = Math.ceil(totalWeeks / weeksPerPage);
           
           for (let pageNum = 0; pageNum < pagesForYear; pageNum++) {
             if (year > 1 || pageNum > 0) {
@@ -1869,6 +1943,8 @@
             const startIdx = pageNum * daysPerPage;
             const endIdx = Math.min(startIdx + daysPerPage, totalDays);
             const pageReadings = readings.slice(startIdx, endIdx);
+            
+            if (pageReadings.length === 0) continue;
             
             pdf.setFontSize(14);
             pdf.setFont('helvetica', 'bold');
@@ -1883,7 +1959,8 @@
               startDateForPage.setFullYear(startDateForPage.getFullYear() + (year - 1));
             }
             if (isWeekly) {
-              startDateForPage.setDate(startDateForPage.getDate() + (pageNum * weeksPerPage * 7));
+              const weeksOffset = pageNum * weeksPerPage;
+              startDateForPage.setDate(startDateForPage.getDate() + (weeksOffset * 7));
             } else {
               startDateForPage.setDate(startDateForPage.getDate() + startIdx);
             }
@@ -1904,7 +1981,7 @@
             const tableHeight = pageHeight - tableTop - margin;
             const colWidth = tableWidth / daysPerWeek;
             const numRows = weeksPerPage;
-            const rowHeight = tableHeight / numRows;
+            const cellHeight = tableHeight / numRows;
             
             const dayLabels = isWeekly 
               ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
@@ -1922,13 +1999,13 @@
             
             const contentTop = tableTop + 12;
             const contentHeight = tableHeight - 12;
-            const cellHeight = contentHeight / numRows;
+            const actualCellHeight = contentHeight / numRows;
             
             pdf.setDrawColor(200, 200, 200);
             pdf.setLineWidth(0.5);
             
             for (let row = 0; row <= numRows; row++) {
-              const y = contentTop + (row * cellHeight);
+              const y = contentTop + (row * actualCellHeight);
               pdf.line(margin, y, margin + tableWidth, y);
             }
             for (let col = 0; col <= daysPerWeek; col++) {
@@ -1939,16 +2016,19 @@
             pdf.setFont('helvetica', 'normal');
             let readingIdx = 0;
             
+            const dateColWidth = colWidth * 0.22;
+            const readingColWidth = colWidth - dateColWidth;
+            const lineHeight = 5.5;
+            const maxLinesPerCell = Math.floor((actualCellHeight - 4) / lineHeight);
+            
             for (let row = 0; row < numRows && readingIdx < pageReadings.length; row++) {
               for (let col = 0; col < daysPerWeek && readingIdx < pageReadings.length; col++) {
                 const item = pageReadings[readingIdx];
-                const x = margin + (col * colWidth) + 3;
-                const y = contentTop + (row * cellHeight) + 2;
-                const cellW = colWidth - 6;
-                const cellH = cellHeight - 4;
+                const cellX = margin + (col * colWidth);
+                const cellY = contentTop + (row * actualCellHeight);
                 
-                pdf.setFontSize(6);
-                pdf.rect(x, y + 1, 5, 5);
+                pdf.setDrawColor(220, 220, 220);
+                pdf.line(cellX + dateColWidth, cellY, cellX + dateColWidth, cellY + actualCellHeight);
                 
                 let dateForDay = new Date(startDate);
                 if (year > 1) {
@@ -1956,42 +2036,38 @@
                 }
                 
                 if (isWeekly) {
-                  const weekNum = Math.floor((startIdx + readingIdx) / 5);
-                  const dayInWeek = (startIdx + readingIdx) % 5;
+                  const absoluteIdx = startIdx + readingIdx;
+                  const weekNum = Math.floor(absoluteIdx / 5);
+                  const dayInWeek = absoluteIdx % 5;
                   dateForDay.setDate(dateForDay.getDate() + (weekNum * 7) + dayInWeek);
-                  if (dateForDay.getDay() === 0) dateForDay.setDate(dateForDay.getDate() + 1);
-                  if (dateForDay.getDay() === 6) dateForDay.setDate(dateForDay.getDate() + 2);
                 } else {
                   dateForDay.setDate(dateForDay.getDate() + startIdx + readingIdx);
                 }
                 
-                const dateStr = `${dateForDay.getMonth() + 1}/${dateForDay.getDate()}`;
+                pdf.setFontSize(5);
+                pdf.rect(cellX + 2, cellY + 2, 5, 5);
+                
                 pdf.setFont('helvetica', 'bold');
-                pdf.text(`${item.dayNum} - ${dateStr}`, x + 8, y + 6);
+                pdf.setFontSize(5.5);
+                const dateStr = `${dateForDay.getMonth() + 1}/${dateForDay.getDate()}`;
+                pdf.text(dateStr, cellX + 9, cellY + 6);
+                
+                const readingX = cellX + dateColWidth + 2;
+                const readingW = readingColWidth - 4;
+                let reading = item.reading;
+                
+                const maxCharsPerLine = Math.floor(readingW / 2.3);
+                let lines = wrapText(reading, maxCharsPerLine, maxLinesPerCell);
+                
+                if (lines.overflow) {
+                  reading = abbreviateBibleReading(item.reading);
+                  lines = wrapText(reading, maxCharsPerLine, maxLinesPerCell);
+                }
                 
                 pdf.setFont('helvetica', 'normal');
                 pdf.setFontSize(5.5);
-                const reading = item.reading;
-                const maxChars = Math.floor(cellW / 2.5);
-                const lines = [];
-                let remaining = reading;
-                
-                while (remaining.length > 0 && lines.length < 3) {
-                  if (remaining.length <= maxChars) {
-                    lines.push(remaining);
-                    break;
-                  }
-                  let breakPoint = remaining.lastIndexOf(';', maxChars);
-                  if (breakPoint === -1 || breakPoint < maxChars / 2) {
-                    breakPoint = remaining.lastIndexOf(' ', maxChars);
-                  }
-                  if (breakPoint === -1) breakPoint = maxChars;
-                  lines.push(remaining.substring(0, breakPoint + 1).trim());
-                  remaining = remaining.substring(breakPoint + 1).trim();
-                }
-                
-                lines.forEach((line, lineIdx) => {
-                  pdf.text(line, x + 2, y + 12 + (lineIdx * 6));
+                lines.lines.forEach((line, lineIdx) => {
+                  pdf.text(line, readingX, cellY + 5 + (lineIdx * lineHeight));
                 });
                 
                 readingIdx++;
