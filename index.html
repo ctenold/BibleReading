@@ -312,7 +312,8 @@
 
     .today-actions-top {
       display: flex;
-      gap: 8px;
+      flex-direction: column;
+      gap: 6px;
     }
 
     .today-widget .date {
@@ -390,13 +391,17 @@
       margin-top: 0;
       padding: 6px 12px;
       font-size: 0.85em;
-      border: 1px solid rgba(255,255,255,0.5);
-      background: rgba(255,255,255,0.2);
-      color: white;
+      border: 2px solid #2196F3;
+      background: rgba(33, 150, 243, 0.1);
+      color: #2196F3;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.3s;
     }
 
     .today-actions-top .sync-button:hover {
-      background: rgba(255,255,255,0.3);
+      background: #2196F3;
+      color: white;
     }
 
     .today-actions-top .export-btn {
@@ -406,13 +411,17 @@
       margin-top: 0;
       padding: 6px 12px;
       font-size: 0.85em;
-      border: 1px solid rgba(255,255,255,0.5);
-      background: rgba(255,255,255,0.2);
-      color: white;
+      border: 2px solid #f44336;
+      background: rgba(244, 67, 54, 0.1);
+      color: #f44336;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.3s;
     }
 
     .today-actions-top .export-btn:hover {
-      background: rgba(255,255,255,0.3);
+      background: #f44336;
+      color: white;
     }
 
     .day.today {
@@ -790,8 +799,6 @@
     <div class="progress-bar">
       <div class="progress-fill" id="progressFill" style="width: 0%">0%</div>
     </div>
-    <button class="sync-button" onclick="openSyncModal()">Sync with Google Drive</button>
-    <button class="export-btn" onclick="openExportModal()">Export to PDF</button>
   </div>
 
   <div id="exportModal" class="export-modal">
