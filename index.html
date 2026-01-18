@@ -274,6 +274,12 @@
       border-color: var(--accent-light);
     }
     
+    [data-theme="dark"] .plan-selector select,
+    [data-theme="dark"] .plan-selector input[type="date"] {
+      background: #3a3a3a;
+      color: #e0e0e0;
+    }
+    
     .plan-selector .theme-toggle {
       margin-left: 0;
       vertical-align: middle;
@@ -437,6 +443,107 @@
       font-size: 0.9em;
       color: var(--text-secondary);
     }
+
+    .sync-tabs {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 15px;
+      border-bottom: 2px solid var(--border-color);
+    }
+
+    .sync-tab {
+      padding: 8px 15px;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 0.9em;
+      border-bottom: 3px solid transparent;
+      transition: all 0.3s;
+      margin-bottom: -2px;
+    }
+
+    .sync-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .sync-tab:hover {
+      color: var(--accent-light);
+    }
+
+    .sync-panel {
+      display: none;
+    }
+
+    .sync-panel.active {
+      display: block;
+    }
+
+    .setting-row {
+      margin: 12px 0;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .setting-row label {
+      font-size: 0.95em;
+      color: var(--text-primary);
+    }
+
+    .setting-row input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+    }
+
+    .setting-row select {
+      padding: 6px 10px;
+      border: 2px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      cursor: pointer;
+      font-size: 0.9em;
+    }
+
+    .sync-info {
+      margin-top: 12px;
+      padding: 10px;
+      background: var(--bg-primary);
+      border-radius: 4px;
+      font-size: 0.85em;
+      color: var(--text-secondary);
+      text-align: center;
+    }
+
+    .last-sync-time {
+      margin-top: 12px;
+      font-size: 0.85em;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    .close-btn {
+      margin-top: 15px;
+      width: 100%;
+      padding: 10px;
+      border: 2px solid var(--accent);
+      background: var(--bg-secondary);
+      color: var(--accent);
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.9em;
+      transition: all 0.3s;
+    }
+
+    .close-btn:hover {
+      background: var(--accent);
+      color: white;
+    }
   </style>
 </head>
 <body>
@@ -445,11 +552,44 @@
 
   <div id="syncModal" class="sync-modal">
     <div class="sync-modal-content">
-      <h3>Google Drive Sync</h3>
-      <button onclick="exportToDrive()">Export Progress</button>
-      <button onclick="importFromDrive()">Import Progress</button>
-      <button onclick="closeSyncModal()">Cancel</button>
-      <div id="syncStatus" class="sync-status"></div>
+      <div id="syncTabsContainer">
+        <div class="sync-tabs">
+          <button class="sync-tab active" onclick="switchSyncTab('sync')">Sync</button>
+          <button class="sync-tab" onclick="switchSyncTab('settings')">Settings</button>
+        </div>
+        
+        <!-- Sync Tab -->
+        <div id="syncTab" class="sync-panel active">
+          <h3>Google Drive Sync</h3>
+          <button onclick="exportToDrive()">Export Progress</button>
+          <button onclick="importFromDrive()">Import Progress</button>
+          <div id="syncStatus" class="sync-status"></div>
+          <div id="lastSyncTime" class="last-sync-time"></div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div id="settingsTab" class="sync-panel">
+          <h3>Auto-Sync Settings</h3>
+          <div class="setting-row">
+            <label for="syncEnabled">Enable Auto-Sync:</label>
+            <input type="checkbox" id="syncEnabled" onchange="saveSyncSettings()">
+          </div>
+          <div class="setting-row">
+            <label for="syncFrequency">Sync Frequency:</label>
+            <select id="syncFrequency" onchange="saveSyncSettings()">
+              <option value="manual">Manual Only</option>
+              <option value="hourly">Every Hour</option>
+              <option value="daily">Once Daily</option>
+              <option value="weekly">Once Weekly</option>
+            </select>
+          </div>
+          <div class="sync-info">
+            Auto-sync will export your progress to Google Drive at the selected frequency.
+          </div>
+        </div>
+      </div>
+      
+      <button onclick="closeSyncModal()" class="close-btn">Close</button>
     </div>
   </div>
 
@@ -757,12 +897,16 @@
       let monthKey = null;
       let dayIndex = 0;
 
+      // Month order for proper sorting
+      const monthOrder = ['January', 'February', 'March', 'April', 'May', 'June', 
+                          'July', 'August', 'September', 'October', 'November', 'December'];
+
       // Check all years to find where today falls
       for (let y = 1; y <= plan.duration; y++) {
         const yearData = plan.data[`year${y}`];
         if (!yearData) continue;
 
-        const months = Object.keys(yearData).sort();
+        const months = Object.keys(yearData).sort((a, b) => monthOrder.indexOf(a) - monthOrder.indexOf(b));
         
         for (const month of months) {
           const readings = yearData[month];
@@ -1123,6 +1267,105 @@
       }
     });
 
+    // Auto-Sync Settings
+    let syncSettings = {
+      enabled: false,
+      frequency: 'manual',
+      lastSyncTime: null
+    };
+
+    function loadSyncSettings() {
+      const saved = localStorage.getItem('bible-sync-settings');
+      if (saved) {
+        syncSettings = JSON.parse(saved);
+      }
+      updateSyncSettingsUI();
+      updateLastSyncTime();
+      if (syncSettings.enabled) {
+        setupAutoSync();
+      }
+    }
+
+    function saveSyncSettings() {
+      syncSettings.enabled = document.getElementById('syncEnabled').checked;
+      syncSettings.frequency = document.getElementById('syncFrequency').value;
+      localStorage.setItem('bible-sync-settings', JSON.stringify(syncSettings));
+      
+      if (syncSettings.enabled) {
+        setupAutoSync();
+      } else {
+        clearAutoSync();
+      }
+    }
+
+    function updateSyncSettingsUI() {
+      document.getElementById('syncEnabled').checked = syncSettings.enabled;
+      document.getElementById('syncFrequency').value = syncSettings.frequency;
+    }
+
+    function updateLastSyncTime() {
+      const lastSyncDiv = document.getElementById('lastSyncTime');
+      if (syncSettings.lastSyncTime) {
+        const lastSync = new Date(syncSettings.lastSyncTime);
+        const now = new Date();
+        const diff = Math.floor((now - lastSync) / 1000);
+        
+        let timeStr;
+        if (diff < 60) timeStr = 'Just now';
+        else if (diff < 3600) timeStr = `${Math.floor(diff / 60)}m ago`;
+        else if (diff < 86400) timeStr = `${Math.floor(diff / 3600)}h ago`;
+        else timeStr = `${Math.floor(diff / 86400)}d ago`;
+        
+        lastSyncDiv.textContent = `Last synced: ${timeStr}`;
+      }
+    }
+
+    function switchSyncTab(tabName) {
+      // Hide all panels
+      document.getElementById('syncTab').classList.remove('active');
+      document.getElementById('settingsTab').classList.remove('active');
+      
+      // Remove active from all tabs
+      document.querySelectorAll('.sync-tab').forEach(tab => tab.classList.remove('active'));
+      
+      // Show selected panel and mark tab as active
+      if (tabName === 'sync') {
+        document.getElementById('syncTab').classList.add('active');
+      } else {
+        document.getElementById('settingsTab').classList.add('active');
+      }
+      
+      event.target.classList.add('active');
+    }
+
+    let autoSyncInterval = null;
+
+    function setupAutoSync() {
+      clearAutoSync();
+      
+      const frequencies = {
+        'hourly': 3600000,      // 1 hour
+        'daily': 86400000,      // 24 hours
+        'weekly': 604800000     // 7 days
+      };
+      
+      const interval = frequencies[syncSettings.frequency];
+      if (interval) {
+        autoSyncInterval = setInterval(() => {
+          if (isSignedIn && accessToken) {
+            exportToDrive();
+          }
+        }, interval);
+      }
+    }
+
+    function clearAutoSync() {
+      if (autoSyncInterval) {
+        clearInterval(autoSyncInterval);
+        autoSyncInterval = null;
+      }
+    }
+
     // Google Drive functions
     let tokenClient;
 
@@ -1223,11 +1466,14 @@
         });
 
         if (response.ok) {
-          const result = await response.json();
-          driveFileId = result.id;
-          localStorage.setItem('bible-drive-file-id', driveFileId);
-          status.textContent = 'Exported successfully to Google Drive';
-          setTimeout(() => closeSyncModal(), 2000);
+           const result = await response.json();
+           driveFileId = result.id;
+           localStorage.setItem('bible-drive-file-id', driveFileId);
+           syncSettings.lastSyncTime = new Date().toISOString();
+           localStorage.setItem('bible-sync-settings', JSON.stringify(syncSettings));
+           updateLastSyncTime();
+           status.textContent = 'Exported successfully to Google Drive';
+           setTimeout(() => closeSyncModal(), 2000);
         } else if (response.status === 401) {
           handleTokenExpiry();
         } else {
@@ -1333,6 +1579,7 @@
       initGoogleAPI();
       await loadAllPlans();
       loadProgress();
+      loadSyncSettings();
       switchPlan(currentPlan);
     }
     init();
