@@ -444,40 +444,38 @@
       color: var(--text-secondary);
     }
 
-    .sync-tabs {
-      display: flex;
-      gap: 5px;
-      margin-bottom: 15px;
-      border-bottom: 2px solid var(--border-color);
+    .sync-section {
+      margin: 15px 0;
+      padding-bottom: 15px;
+      border-bottom: 1px solid var(--border-color);
     }
 
-    .sync-tab {
-      padding: 8px 15px;
-      background: none;
+    .sync-section:last-of-type {
+      border-bottom: none;
+    }
+
+    .sync-section h4 {
+      font-size: 0.95em;
+      color: var(--text-primary);
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+
+    .sync-action-btn {
+      width: 100%;
+      padding: 10px;
+      background: var(--accent);
+      color: white;
       border: none;
-      color: var(--text-secondary);
+      border-radius: 5px;
       cursor: pointer;
-      font-size: 0.9em;
-      border-bottom: 3px solid transparent;
+      font-size: 0.95em;
+      font-weight: 500;
       transition: all 0.3s;
-      margin-bottom: -2px;
     }
 
-    .sync-tab.active {
-      color: var(--accent);
-      border-bottom-color: var(--accent);
-    }
-
-    .sync-tab:hover {
-      color: var(--accent-light);
-    }
-
-    .sync-panel {
-      display: none;
-    }
-
-    .sync-panel.active {
-      display: block;
+    .sync-action-btn:hover {
+      background: var(--accent-light);
     }
 
     .setting-row {
@@ -552,42 +550,23 @@
 
   <div id="syncModal" class="sync-modal">
     <div class="sync-modal-content">
-      <div id="syncTabsContainer">
-        <div class="sync-tabs">
-          <button class="sync-tab active" onclick="switchSyncTab('sync')">Sync</button>
-          <button class="sync-tab" onclick="switchSyncTab('settings')">Settings</button>
-        </div>
-        
-        <!-- Sync Tab -->
-        <div id="syncTab" class="sync-panel active">
-          <h3>Google Drive Sync</h3>
-          <button onclick="exportToDrive()">Export Progress</button>
-          <button onclick="importFromDrive()">Import Progress</button>
-          <div id="syncStatus" class="sync-status"></div>
-          <div id="lastSyncTime" class="last-sync-time"></div>
-        </div>
+      <h3>Google Drive Sync</h3>
+      
+      <div class="sync-section">
+        <h4>Manual Sync</h4>
+        <button class="sync-action-btn" onclick="exportToDrive()">Sync Now</button>
+      </div>
 
-        <!-- Settings Tab -->
-        <div id="settingsTab" class="sync-panel">
-          <h3>Auto-Sync Settings</h3>
-          <div class="setting-row">
-            <label for="syncEnabled">Enable Auto-Sync:</label>
-            <input type="checkbox" id="syncEnabled" onchange="saveSyncSettings()">
-          </div>
-          <div class="setting-row">
-            <label for="syncFrequency">Sync Frequency:</label>
-            <select id="syncFrequency" onchange="saveSyncSettings()">
-              <option value="manual">Manual Only</option>
-              <option value="hourly">Every Hour</option>
-              <option value="daily">Once Daily</option>
-              <option value="weekly">Once Weekly</option>
-            </select>
-          </div>
-          <div class="sync-info">
-            Auto-sync will export your progress to Google Drive at the selected frequency.
-          </div>
+      <div class="sync-section">
+        <h4>Auto Sync</h4>
+        <div class="setting-row">
+          <label for="syncEnabled">Auto-sync (on open, changes &amp; close):</label>
+          <input type="checkbox" id="syncEnabled" onchange="saveSyncSettings()">
         </div>
       </div>
+
+      <div id="syncStatus" class="sync-status"></div>
+      <div id="lastSyncTime" class="last-sync-time"></div>
       
       <button onclick="closeSyncModal()" class="close-btn">Close</button>
     </div>
@@ -888,7 +867,54 @@
       const plan = plans[currentPlan];
       if (!plan || !startDate) return null;
 
-      // Calculate days elapsed
+      // For weekly plans, calculate based on weeks and weekday
+      if (plan.type === 'weekly') {
+        const dayOfWeek = today.getDay(); // 0 = Sunday, 6 = Saturday
+        
+        // No reading on weekends - return null
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+          return null;
+        }
+
+        // Calculate weeks elapsed since start
+        const msPerDay = 1000 * 60 * 60 * 24;
+        const daysElapsed = Math.floor((today - startDate) / msPerDay);
+        const weeksElapsed = Math.floor(daysElapsed / 7);
+        
+        // dayOfWeek: 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri -> index 0-4
+        const readingIndex = dayOfWeek - 1;
+
+        // Find which week we're in
+        const yearData = plan.data['year1'];
+        if (!yearData) return null;
+
+        const weeks = Object.keys(yearData).sort((a, b) => {
+          const numA = parseInt(a.replace('Week', ''));
+          const numB = parseInt(b.replace('Week', ''));
+          return numA - numB;
+        });
+
+        if (weeksElapsed >= weeks.length) return null;
+
+        const weekKey = weeks[weeksElapsed];
+        const readings = yearData[weekKey];
+        
+        if (!readings || readingIndex >= readings.length) return null;
+
+        const reading = readings[readingIndex];
+        const key = `${currentPlan}-1-${weekKey}-${readingIndex}`;
+
+        return {
+          date: today,
+          reading,
+          key,
+          monthKey: weekKey,
+          dayIndex: readingIndex,
+          year: 1
+        };
+      }
+
+      // Daily plans: calculate days elapsed
       const daysElapsed = Math.floor((today - startDate) / (1000 * 60 * 60 * 24));
       
       // Find which year and position this falls into
@@ -1082,6 +1108,7 @@
 
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
+            checkbox.className = 'day-checkbox';
             checkbox.id = originalKey.replace(/[^a-zA-Z0-9]/g, '-');
             checkbox.checked = checkState[originalKey] || false;
             checkbox.addEventListener('change', () => {
@@ -1157,6 +1184,7 @@
 
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
+            checkbox.className = 'day-checkbox';
             checkbox.id = originalKey.replace(/[^a-zA-Z0-9]/g, '-');
             checkbox.checked = checkState[originalKey] || false;
             checkbox.addEventListener('change', () => {
@@ -1264,13 +1292,20 @@
         startDate = new Date(year, month - 1, day);
         setStartDateForPlan(currentPlan, startDate);
         renderCalendar();
+        triggerAutoSync();
+      }
+    });
+
+    // Auto-sync on checkbox changes
+    document.addEventListener('change', (e) => {
+      if (e.target.type === 'checkbox' && e.target.classList.contains('day-checkbox')) {
+        triggerAutoSync();
       }
     });
 
     // Auto-Sync Settings
     let syncSettings = {
       enabled: false,
-      frequency: 'manual',
       lastSyncTime: null
     };
 
@@ -1281,26 +1316,15 @@
       }
       updateSyncSettingsUI();
       updateLastSyncTime();
-      if (syncSettings.enabled) {
-        setupAutoSync();
-      }
     }
 
     function saveSyncSettings() {
       syncSettings.enabled = document.getElementById('syncEnabled').checked;
-      syncSettings.frequency = document.getElementById('syncFrequency').value;
       localStorage.setItem('bible-sync-settings', JSON.stringify(syncSettings));
-      
-      if (syncSettings.enabled) {
-        setupAutoSync();
-      } else {
-        clearAutoSync();
-      }
     }
 
     function updateSyncSettingsUI() {
       document.getElementById('syncEnabled').checked = syncSettings.enabled;
-      document.getElementById('syncFrequency').value = syncSettings.frequency;
     }
 
     function updateLastSyncTime() {
@@ -1320,51 +1344,46 @@
       }
     }
 
-    function switchSyncTab(tabName) {
-      // Hide all panels
-      document.getElementById('syncTab').classList.remove('active');
-      document.getElementById('settingsTab').classList.remove('active');
-      
-      // Remove active from all tabs
-      document.querySelectorAll('.sync-tab').forEach(tab => tab.classList.remove('active'));
-      
-      // Show selected panel and mark tab as active
-      if (tabName === 'sync') {
-        document.getElementById('syncTab').classList.add('active');
+    let autoSyncTimeout = null;
+
+    function triggerAutoSync(immediate = false) {
+      if (!syncSettings.enabled || !isSignedIn || !accessToken) return;
+
+      // Clear any pending debounce
+      if (autoSyncTimeout) {
+        clearTimeout(autoSyncTimeout);
+      }
+
+      if (immediate) {
+        exportToDrive();
       } else {
-        document.getElementById('settingsTab').classList.add('active');
+        // Debounce: wait 500ms before syncing (batches multiple quick changes)
+        autoSyncTimeout = setTimeout(() => {
+          exportToDrive();
+          autoSyncTimeout = null;
+        }, 500);
       }
-      
-      event.target.classList.add('active');
     }
 
-    let autoSyncInterval = null;
-
-    function setupAutoSync() {
-      clearAutoSync();
-      
-      const frequencies = {
-        'hourly': 3600000,      // 1 hour
-        'daily': 86400000,      // 24 hours
-        'weekly': 604800000     // 7 days
-      };
-      
-      const interval = frequencies[syncSettings.frequency];
-      if (interval) {
-        autoSyncInterval = setInterval(() => {
-          if (isSignedIn && accessToken) {
-            exportToDrive();
+    // Sync before unload
+    window.addEventListener('beforeunload', () => {
+      if (autoSyncTimeout) {
+        clearTimeout(autoSyncTimeout);
+      }
+      if (syncSettings.enabled && isSignedIn && accessToken) {
+        navigator.sendBeacon = navigator.sendBeacon || ((url, data) => {
+          try {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', url, false);
+            xhr.send(data);
+            return true;
+          } catch (e) {
+            return false;
           }
-        }, interval);
+        });
+        exportToDrive();
       }
-    }
-
-    function clearAutoSync() {
-      if (autoSyncInterval) {
-        clearInterval(autoSyncInterval);
-        autoSyncInterval = null;
-      }
-    }
+    });
 
     // Google Drive functions
     let tokenClient;
@@ -1581,6 +1600,7 @@
       loadProgress();
       loadSyncSettings();
       switchPlan(currentPlan);
+      triggerAutoSync();
     }
     init();
   </script>
