@@ -341,6 +341,7 @@
       margin-top: 12px;
       padding-top: 12px;
       border-top: 1px solid rgba(255,255,255,0.3);
+      flex-wrap: wrap;
     }
 
     .today-widget button {
@@ -352,6 +353,7 @@
       cursor: pointer;
       font-size: 0.9em;
       transition: all 0.3s;
+      position: relative;
     }
 
     .today-widget button:hover {
@@ -360,12 +362,31 @@
 
     .today-widget .mark-done {
       flex: 1;
+      min-width: 120px;
     }
 
     .today-widget .mark-done.completed {
       background: rgba(255,255,255,0.4);
       border-color: rgba(255,255,255,0.7);
       font-weight: bold;
+    }
+
+    .today-widget .sync-button,
+    .today-widget .export-btn {
+      position: relative;
+      top: auto;
+      right: auto;
+      margin-top: 0;
+      padding: 6px 12px;
+      font-size: 0.9em;
+      border: 1px solid rgba(255,255,255,0.5);
+      background: rgba(255,255,255,0.2);
+      color: white;
+    }
+
+    .today-widget .sync-button:hover,
+    .today-widget .export-btn:hover {
+      background: rgba(255,255,255,0.3);
     }
 
     .day.today {
@@ -729,6 +750,8 @@
     <div class="actions">
       <button class="mark-done" id="markTodayDone" onclick="markTodayDone()">✓ Mark as Done</button>
       <button onclick="scrollToToday()">⬇️ Scroll to Today</button>
+      <button class="sync-button" onclick="openSyncModal()">Sync with Google Drive</button>
+      <button class="export-btn" onclick="openExportModal()">Export to PDF</button>
     </div>
   </div>
 
@@ -737,8 +760,6 @@
     <div class="progress-bar">
       <div class="progress-fill" id="progressFill" style="width: 0%">0%</div>
     </div>
-    <button class="sync-button" onclick="openSyncModal()">Sync with Google Drive</button>
-    <button class="export-btn" onclick="openExportModal()">Export to PDF</button>
   </div>
 
   <div id="exportModal" class="export-modal">
@@ -1879,17 +1900,20 @@
     }
 
     function textFitsInCell(pdf, text, maxWidth, maxLines) {
-      const words = text.split(/([;\s]+)/);
+      const segments = text.split(/;\s*/).map(s => s.trim()).filter(s => s);
       const lines = [];
       let currentLine = '';
       
-      for (const word of words) {
-        const testLine = currentLine + word;
+      for (let i = 0; i < segments.length; i++) {
+        const segment = segments[i];
+        const separator = i > 0 ? '; ' : '';
+        const testLine = currentLine + separator + segment;
+        
         if (pdf.getTextWidth(testLine) <= maxWidth) {
           currentLine = testLine;
         } else {
           if (currentLine.trim()) lines.push(currentLine.trim());
-          currentLine = word.trim() + ' ';
+          currentLine = segment;
           if (lines.length >= maxLines) return false;
         }
       }
@@ -1899,17 +1923,20 @@
     }
 
     function wrapTextForRender(pdf, text, maxWidth, maxLines) {
-      const words = text.split(/([;\s]+)/);
+      const segments = text.split(/;\s*/).map(s => s.trim()).filter(s => s);
       const lines = [];
       let currentLine = '';
       
-      for (const word of words) {
-        const testLine = currentLine + word;
+      for (let i = 0; i < segments.length; i++) {
+        const segment = segments[i];
+        const separator = i > 0 ? '; ' : '';
+        const testLine = currentLine + separator + segment;
+        
         if (pdf.getTextWidth(testLine) <= maxWidth) {
           currentLine = testLine;
         } else {
           if (currentLine.trim()) lines.push(currentLine.trim());
-          currentLine = word.trim() + ' ';
+          currentLine = segment;
           if (lines.length >= maxLines) break;
         }
       }
