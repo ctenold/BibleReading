@@ -1845,6 +1845,81 @@
       return d;
     }
 
+    function calculateOptimalFontSize(pdf, readings, cellWidth, cellHeight) {
+      const maxFontSize = 8;
+      const minFontSize = 4;
+      
+      for (let fontSize = maxFontSize; fontSize >= minFontSize; fontSize -= 0.25) {
+        pdf.setFontSize(fontSize);
+        const lineHeight = fontSize * 1.15;
+        const maxLines = Math.floor((cellHeight - 3) / lineHeight);
+        
+        let allFit = true;
+        for (const reading of readings) {
+          let text = reading;
+          let fits = textFitsInCell(pdf, text, cellWidth - 2, maxLines);
+          
+          if (!fits) {
+            text = abbreviateBibleReading(reading);
+            fits = textFitsInCell(pdf, text, cellWidth - 2, maxLines);
+          }
+          
+          if (!fits) {
+            allFit = false;
+            break;
+          }
+        }
+        
+        if (allFit) {
+          return { fontSize, lineHeight, maxLines, useAbbreviations: false };
+        }
+      }
+      
+      return { fontSize: minFontSize, lineHeight: minFontSize * 1.15, maxLines: Math.floor((cellHeight - 3) / (minFontSize * 1.15)), useAbbreviations: true };
+    }
+
+    function textFitsInCell(pdf, text, maxWidth, maxLines) {
+      const words = text.split(/([;\s]+)/);
+      const lines = [];
+      let currentLine = '';
+      
+      for (const word of words) {
+        const testLine = currentLine + word;
+        if (pdf.getTextWidth(testLine) <= maxWidth) {
+          currentLine = testLine;
+        } else {
+          if (currentLine.trim()) lines.push(currentLine.trim());
+          currentLine = word.trim() + ' ';
+          if (lines.length >= maxLines) return false;
+        }
+      }
+      if (currentLine.trim()) lines.push(currentLine.trim());
+      
+      return lines.length <= maxLines;
+    }
+
+    function wrapTextForRender(pdf, text, maxWidth, maxLines) {
+      const words = text.split(/([;\s]+)/);
+      const lines = [];
+      let currentLine = '';
+      
+      for (const word of words) {
+        const testLine = currentLine + word;
+        if (pdf.getTextWidth(testLine) <= maxWidth) {
+          currentLine = testLine;
+        } else {
+          if (currentLine.trim()) lines.push(currentLine.trim());
+          currentLine = word.trim() + ' ';
+          if (lines.length >= maxLines) break;
+        }
+      }
+      if (currentLine.trim() && lines.length < maxLines) {
+        lines.push(currentLine.trim());
+      }
+      
+      return lines;
+    }
+
     function loadImageAsDataURL(src) {
       return new Promise((resolve) => {
         const img = new Image();
@@ -1945,6 +2020,25 @@
         const margin = 25;
         const headerHeight = 38;
         
+        const weeksPerPage = 27;
+        const tableTop = margin + headerHeight;
+        const tableHeight = pageHeight - tableTop - margin;
+        const tableWidth = pageWidth - (2 * margin);
+        const colWidth = tableWidth / daysPerWeek;
+        const dateColWidth = colWidth * 0.22;
+        const readingColWidth = colWidth - dateColWidth;
+        const readingW = readingColWidth - 3;
+        const contentHeight = tableHeight - 12;
+        const actualCellHeight = contentHeight / weeksPerPage;
+        
+        const allReadings = [];
+        for (let y = 1; y <= duration; y++) {
+          const yearReadings = getReadingsForPDF(plan, y);
+          yearReadings.forEach(r => allReadings.push(r.reading));
+        }
+        
+        const optimalFont = calculateOptimalFontSize(pdf, allReadings, readingW, actualCellHeight);
+        
         for (let year = 1; year <= duration; year++) {
           const readings = getReadingsForPDF(plan, year);
           const totalDays = readings.length;
@@ -2035,10 +2129,9 @@
             pdf.setFont('helvetica', 'normal');
             let readingIdx = 0;
             
-            const dateColWidth = colWidth * 0.22;
-            const readingColWidth = colWidth - dateColWidth;
-            const lineHeight = 5.5;
-            const maxLinesPerCell = Math.floor((actualCellHeight - 4) / lineHeight);
+            const localDateColWidth = colWidth * 0.22;
+            const localReadingColWidth = colWidth - localDateColWidth;
+            const localReadingW = localReadingColWidth - 3;
             
             for (let row = 0; row < numRows && readingIdx < pageReadings.length; row++) {
               for (let col = 0; col < daysPerWeek && readingIdx < pageReadings.length; col++) {
@@ -2047,7 +2140,7 @@
                 const cellY = contentTop + (row * actualCellHeight);
                 
                 pdf.setDrawColor(220, 220, 220);
-                pdf.line(cellX + dateColWidth, cellY, cellX + dateColWidth, cellY + actualCellHeight);
+                pdf.line(cellX + localDateColWidth, cellY, cellX + localDateColWidth, cellY + actualCellHeight);
                 
                 let dateForDay = new Date(startDate);
                 if (year > 1) {
@@ -2071,27 +2164,19 @@
                 const dateStr = `${dateForDay.getMonth() + 1}/${dateForDay.getDate()}`;
                 pdf.text(dateStr, cellX + 9, cellY + 6);
                 
-                const readingX = cellX + dateColWidth + 1;
-                const readingW = readingColWidth - 3;
+                const readingX = cellX + localDateColWidth + 1;
                 let reading = item.reading;
                 
-                const maxCharsPerLine = Math.floor(readingW / 2.2);
-                let lines = wrapText(reading, maxCharsPerLine, maxLinesPerCell);
-                
-                if (lines.overflow) {
+                pdf.setFontSize(optimalFont.fontSize);
+                let fits = textFitsInCell(pdf, reading, localReadingW - 2, optimalFont.maxLines);
+                if (!fits) {
                   reading = abbreviateBibleReading(item.reading);
-                  lines = wrapText(reading, maxCharsPerLine, maxLinesPerCell);
                 }
                 
                 pdf.setFont('helvetica', 'normal');
-                pdf.setFontSize(5);
-                lines.lines.forEach((line, lineIdx) => {
-                  const maxLineWidth = readingW - 2;
-                  let displayLine = line;
-                  while (pdf.getTextWidth(displayLine) > maxLineWidth && displayLine.length > 0) {
-                    displayLine = displayLine.slice(0, -1);
-                  }
-                  pdf.text(displayLine, readingX, cellY + 5 + (lineIdx * lineHeight));
+                const lines = wrapTextForRender(pdf, reading, localReadingW - 2, optimalFont.maxLines);
+                lines.forEach((line, lineIdx) => {
+                  pdf.text(line, readingX, cellY + 4 + optimalFont.fontSize + (lineIdx * optimalFont.lineHeight));
                 });
                 
                 readingIdx++;
