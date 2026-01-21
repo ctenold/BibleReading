@@ -570,6 +570,29 @@
       font-weight: 600;
     }
 
+    .sync-description {
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 0.9em;
+      margin-bottom: 15px;
+    }
+
+    .sync-hint {
+      font-size: 0.8em;
+      color: var(--text-muted);
+      margin-top: 8px;
+      text-align: left;
+    }
+
+    .sync-note {
+      font-size: 0.75em;
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: 15px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border-color);
+    }
+
     .sync-action-btn {
       width: 100%;
       padding: 10px;
@@ -775,23 +798,27 @@
 
   <div id="syncModal" class="sync-modal">
     <div class="sync-modal-content">
-      <h3>Google Drive Sync</h3>
+      <h3>☁️ Google Drive Sync</h3>
+      <p class="sync-description">Keep your reading progress synchronized across all your devices.</p>
       
       <div class="sync-section">
-        <h4>Manual Sync</h4>
-        <button class="sync-action-btn" onclick="syncNow()">Sync Now</button>
+        <h4>Sync Now</h4>
+        <button class="sync-action-btn" onclick="syncNow()">🔄 Sync Now</button>
       </div>
 
       <div class="sync-section">
         <h4>Auto Sync</h4>
         <div class="setting-row">
-          <label for="syncEnabled">Auto-sync (on open &amp; changes):</label>
+          <label for="syncEnabled">Enable auto-sync:</label>
           <input type="checkbox" id="syncEnabled" onchange="saveSyncSettings()">
         </div>
+        <p class="sync-hint">When enabled, your progress syncs automatically when you check off readings.</p>
       </div>
 
       <div id="syncStatus" class="sync-status"></div>
       <div id="lastSyncTime" class="last-sync-time"></div>
+      
+      <p class="sync-note">Note: You'll need to sign in once per browser session. Google tokens expire for security.</p>
       
       <button onclick="closeSyncModal()" class="close-btn">Close</button>
     </div>
@@ -1631,7 +1658,10 @@
 
       btn.classList.remove('synced', 'needs-auth');
 
-      if (isSignedIn && accessToken && syncSettings.enabled) {
+      const syncEnabled = syncSettings && syncSettings.enabled;
+
+      if (isSignedIn && accessToken && syncEnabled) {
+        // Fully connected and syncing
         btn.classList.add('synced');
         const lastSync = syncSettings.lastSyncTime;
         if (lastSync) {
@@ -1642,14 +1672,24 @@
           else if (diff < 86400) timeStr = `${Math.floor(diff / 3600)}h ago`;
           else timeStr = `${Math.floor(diff / 86400)}d ago`;
           btn.textContent = `✓ Synced ${timeStr}`;
+          btn.title = 'Click to open sync settings';
         } else {
           btn.textContent = '✓ Sync Enabled';
+          btn.title = 'Click to open sync settings';
         }
-      } else if (syncSettings.enabled && !isSignedIn) {
+      } else if (syncEnabled && !isSignedIn) {
+        // User enabled sync before but session expired
         btn.classList.add('needs-auth');
-        btn.textContent = '⚠ Sign in to Sync';
+        btn.textContent = '🔄 Reconnect to Sync';
+        btn.title = 'Your session expired. Click to sign in again.';
+      } else if (isSignedIn && accessToken && !syncEnabled) {
+        // Signed in but auto-sync not enabled
+        btn.textContent = '☁️ Enable Auto-Sync';
+        btn.title = 'Click to enable automatic syncing';
       } else {
-        btn.textContent = 'Sync with Google Drive';
+        // Not set up at all
+        btn.textContent = '☁️ Set Up Sync';
+        btn.title = 'Sync your progress across devices with Google Drive';
       }
     }
 
@@ -1708,38 +1748,21 @@
             accessToken = response.access_token;
             isSignedIn = true;
             updateSyncButtonState();
-            // Only show modal if this was a user-initiated sign-in (not silent refresh)
-            if (!silentTokenRefresh) {
-              document.getElementById('syncModal').classList.add('show');
-            }
-            silentTokenRefresh = false;
-            // Always pull on sign-in to get latest remote state
+            document.getElementById('syncModal').classList.add('show');
+            // Pull on sign-in to get latest remote state
             syncPull({ createIfMissing: true });
-          } else {
-            // Silent refresh failed, update button to show needs auth
+          } else if (response.error) {
+            // Auth failed or was cancelled
+            console.log('Auth error:', response.error);
             updateSyncButtonState();
           }
+        },
+        error_callback: (error) => {
+          // Handle popup blocked or other errors
+          console.log('Token client error:', error);
+          updateSyncButtonState();
         }
       });
-
-      // Attempt silent token refresh if auto-sync was previously enabled
-      if (syncSettings.enabled) {
-        attemptSilentTokenRefresh();
-      }
-    }
-
-    let silentTokenRefresh = false;
-
-    function attemptSilentTokenRefresh() {
-      if (!tokenClient) return;
-      silentTokenRefresh = true;
-      try {
-        tokenClient.requestAccessToken({ prompt: '' });
-      } catch (e) {
-        console.log('Silent token refresh not available');
-        silentTokenRefresh = false;
-        updateSyncButtonState();
-      }
     }
 
     function handleCredentialResponse(response) {
