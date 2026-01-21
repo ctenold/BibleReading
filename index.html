@@ -457,6 +457,47 @@
       color: white;
     }
 
+    .sync-button.synced {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: white;
+    }
+
+    .sync-button.synced:hover {
+      background: var(--accent-dark);
+      border-color: var(--accent-dark);
+    }
+
+    .sync-button.needs-auth {
+      border-color: #FF9800;
+      color: #FF9800;
+    }
+
+    .sync-button.needs-auth:hover {
+      background: #FF9800;
+      color: white;
+    }
+
+    .today-actions-top .sync-button.synced {
+      border-color: var(--accent);
+      background: var(--accent);
+    }
+
+    .today-actions-top .sync-button.synced:hover {
+      background: var(--accent-dark);
+      border-color: var(--accent-dark);
+    }
+
+    .today-actions-top .sync-button.needs-auth {
+      border-color: #FF9800;
+      background: #FF9800;
+    }
+
+    .today-actions-top .sync-button.needs-auth:hover {
+      background: #E65100;
+      border-color: #E65100;
+    }
+
     .sync-modal {
       display: none;
       position: fixed;
@@ -784,7 +825,7 @@
     <div class="today-header">
       <h3>📖 Today's Reading</h3>
       <div class="today-actions-top">
-        <button class="sync-button" onclick="openSyncModal()">Sync with Google Drive</button>
+        <button class="sync-button" id="syncButton" onclick="openSyncModal()">Sync with Google Drive</button>
         <button class="export-btn" onclick="openExportModal()">Export to PDF</button>
       </div>
     </div>
@@ -1553,6 +1594,7 @@
     function saveSyncSettings() {
       syncSettings.enabled = document.getElementById('syncEnabled').checked;
       localStorage.setItem('bible-sync-settings', JSON.stringify(syncSettings));
+      updateSyncButtonState();
       if (syncSettings.enabled && isSignedIn && accessToken) {
         syncPull({ createIfMissing: true });
       }
@@ -1577,10 +1619,39 @@
         
         lastSyncDiv.textContent = `Last synced: ${timeStr}`;
       }
+      updateSyncButtonState();
     }
 
     let autoSyncTimeout = null;
     let syncInProgress = false;
+
+    function updateSyncButtonState() {
+      const btn = document.getElementById('syncButton');
+      if (!btn) return;
+
+      btn.classList.remove('synced', 'needs-auth');
+
+      if (isSignedIn && accessToken && syncSettings.enabled) {
+        btn.classList.add('synced');
+        const lastSync = syncSettings.lastSyncTime;
+        if (lastSync) {
+          const diff = Math.floor((Date.now() - new Date(lastSync).getTime()) / 1000);
+          let timeStr;
+          if (diff < 60) timeStr = 'just now';
+          else if (diff < 3600) timeStr = `${Math.floor(diff / 60)}m ago`;
+          else if (diff < 86400) timeStr = `${Math.floor(diff / 3600)}h ago`;
+          else timeStr = `${Math.floor(diff / 86400)}d ago`;
+          btn.textContent = `✓ Synced ${timeStr}`;
+        } else {
+          btn.textContent = '✓ Sync Enabled';
+        }
+      } else if (syncSettings.enabled && !isSignedIn) {
+        btn.classList.add('needs-auth');
+        btn.textContent = '⚠ Sign in to Sync';
+      } else {
+        btn.textContent = 'Sync with Google Drive';
+      }
+    }
 
     function touchLocalSyncTimestamp() {
       localStorage.setItem('bible-sync-local-timestamp', new Date().toISOString());
@@ -1636,12 +1707,39 @@
           if (response.access_token) {
             accessToken = response.access_token;
             isSignedIn = true;
-            document.getElementById('syncModal').classList.add('show');
+            updateSyncButtonState();
+            // Only show modal if this was a user-initiated sign-in (not silent refresh)
+            if (!silentTokenRefresh) {
+              document.getElementById('syncModal').classList.add('show');
+            }
+            silentTokenRefresh = false;
             // Always pull on sign-in to get latest remote state
             syncPull({ createIfMissing: true });
+          } else {
+            // Silent refresh failed, update button to show needs auth
+            updateSyncButtonState();
           }
         }
       });
+
+      // Attempt silent token refresh if auto-sync was previously enabled
+      if (syncSettings.enabled) {
+        attemptSilentTokenRefresh();
+      }
+    }
+
+    let silentTokenRefresh = false;
+
+    function attemptSilentTokenRefresh() {
+      if (!tokenClient) return;
+      silentTokenRefresh = true;
+      try {
+        tokenClient.requestAccessToken({ prompt: '' });
+      } catch (e) {
+        console.log('Silent token refresh not available');
+        silentTokenRefresh = false;
+        updateSyncButtonState();
+      }
     }
 
     function handleCredentialResponse(response) {
@@ -2442,13 +2540,14 @@
 
     // Initialize
     async function init() {
-      initGoogleAPI();
       await loadAllPlans();
       parseURLParams();
       loadProgress();
       loadSyncSettings();
       switchPlan(currentPlan, { shouldSync: false });
-      // Note: sync will happen automatically when user signs in via tokenClient callback
+      updateSyncButtonState();
+      // Init Google API last - it will attempt silent token refresh if sync is enabled
+      initGoogleAPI();
     }
     init();
   </script>
