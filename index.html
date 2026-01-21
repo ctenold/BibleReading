@@ -1637,9 +1637,8 @@
             accessToken = response.access_token;
             isSignedIn = true;
             document.getElementById('syncModal').classList.add('show');
-            if (syncSettings.enabled) {
-              syncPull({ createIfMissing: true });
-            }
+            // Always pull on sign-in to get latest remote state
+            syncPull({ createIfMissing: true });
           }
         }
       });
@@ -1693,11 +1692,17 @@
         const savedYear = localStorage.getItem(`bible-year-${planKey}`);
         const savedStart = localStorage.getItem(`bible-start-date-${planKey}`);
 
-        progressByPlan[planKey] = savedProgress ? JSON.parse(savedProgress) : {};
+        // Use in-memory checkState for current plan (it may have unsaved changes)
+        if (planKey === currentPlan) {
+          progressByPlan[planKey] = checkState;
+        } else {
+          progressByPlan[planKey] = savedProgress ? JSON.parse(savedProgress) : {};
+        }
         yearsByPlan[planKey] = savedYear ? parseInt(savedYear) : 1;
         startDates[planKey] = savedStart || null;
       });
 
+      // Use in-memory currentYear for current plan
       yearsByPlan[currentPlan] = currentYear;
 
       return {
@@ -1876,7 +1881,10 @@
 
       try {
         const files = await fetchLatestSyncFile();
-        if (!files) return;
+        if (!files) {
+          syncInProgress = false;
+          return;
+        }
 
         if (files.length === 0) {
           if (createIfMissing) {
@@ -1892,7 +1900,10 @@
         localStorage.setItem('bible-drive-file-id', driveFileId);
 
         const data = await downloadSyncFile(fileId);
-        if (!data) return;
+        if (!data) {
+          syncInProgress = false;
+          return;
+        }
 
         const remoteTimestamp = data.timestamp ? new Date(data.timestamp).getTime() : 0;
         const localTimestamp = getLocalSyncTimestamp();
@@ -2436,11 +2447,8 @@
       parseURLParams();
       loadProgress();
       loadSyncSettings();
-      switchPlan(currentPlan);
-      triggerAutoSync();
-      if (syncSettings.enabled && isSignedIn && accessToken) {
-        syncPull({ createIfMissing: true });
-      }
+      switchPlan(currentPlan, { shouldSync: false });
+      // Note: sync will happen automatically when user signs in via tokenClient callback
     }
     init();
   </script>
