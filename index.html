@@ -2014,6 +2014,9 @@
             await syncPush({ bypassLock: true });
           } else {
             status.textContent = 'No sync file found in Google Drive';
+            syncSettings.lastSyncTime = new Date().toISOString();
+            localStorage.setItem('bible-sync-settings', JSON.stringify(syncSettings));
+            updateLastSyncTime();
           }
           return;
         }
@@ -2036,11 +2039,17 @@
           setRemoteSyncTimestamp(data.timestamp);
           status.textContent = 'Synced from Google Drive';
           touchLocalSyncTimestamp();
+          syncSettings.lastSyncTime = new Date().toISOString();
+          localStorage.setItem('bible-sync-settings', JSON.stringify(syncSettings));
+          updateLastSyncTime();
         } else if (remoteTimestamp === 0 || localTimestamp > remoteTimestamp) {
           status.textContent = 'Local data is newer; syncing to Google Drive...';
           await syncPush({ bypassLock: true });
         } else {
           status.textContent = 'Already up to date';
+          syncSettings.lastSyncTime = new Date().toISOString();
+          localStorage.setItem('bible-sync-settings', JSON.stringify(syncSettings));
+          updateLastSyncTime();
         }
 
         if (files.length > 1) {
