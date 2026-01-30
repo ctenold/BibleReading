@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bible-reading-v2';
+const CACHE_NAME = 'bible-reading-v3';
 const urlsToCache = [
   '/BibleReading/',
   '/BibleReading/index.html',
@@ -10,13 +10,16 @@ const urlsToCache = [
   '/BibleReading/plans/esvthroughthebible.json',
   '/BibleReading/plans/esvliterarystudybible.json',
   '/BibleReading/plans/heartlightotandnt.json',
-  '/BibleReading/plans/fiveday2026.json'
+  '/BibleReading/plans/fiveday2026.json',
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'
 ];
 
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(urlsToCache))
+      .then(() => self.skipWaiting())
   );
 });
 
@@ -28,7 +31,7 @@ self.addEventListener('activate', event => {
           .filter(cacheName => cacheName !== CACHE_NAME)
           .map(cacheName => caches.delete(cacheName))
       );
-    })
+    }).then(() => self.clients.claim())
   );
 });
 
